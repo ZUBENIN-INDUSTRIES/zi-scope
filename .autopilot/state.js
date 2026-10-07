@@ -1,7 +1,7 @@
 window.STATE =
 {
   "slug": "microscope-viewer",
-  "dir": "2026-10-07-microscope-viewer--wip",
+  "dir": "2026-10-07-microscope-viewer",
   "title": "Программа для микроскопа Lumenera INFINITY 4",
   "mode": "semi",
   "depth": "normal",
@@ -11,8 +11,8 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T23:01:13+05:00",
-  "finishedAt": null,
+  "updatedAt": "2026-10-07T23:19:47+05:00",
+  "finishedAt": "2026-10-07T23:19:47+05:00",
   "stages": [
     {
       "id": "preflight",
@@ -47,26 +47,31 @@ window.STATE =
     },
     {
       "id": "build",
-      "status": "active",
+      "status": "done",
       "startedAt": "2026-10-07T18:58:38+05:00",
-      "note": "7 из 8 тасков готовы (08 — по разбору замечаний)"
+      "note": "8 из 8 тасков готовы",
+      "finishedAt": "2026-10-07T23:15:07+05:00"
     },
     {
       "id": "review",
-      "status": "active",
+      "status": "done",
       "startedAt": "2026-10-07T19:08:00+05:00",
-      "note": "проверено 7 из 8"
+      "note": "проверено 8 из 8",
+      "finishedAt": "2026-10-07T23:15:07+05:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "done",
+      "startedAt": "2026-10-07T23:15:07+05:00",
+      "finishedAt": "2026-10-07T23:19:47+05:00",
+      "note": "слепая приёмка: 1 расхождение (окружение)"
     }
   ],
   "requirements": {
     "total": 19,
-    "done": 0,
-    "inTicket": 18,
-    "inSpec": 1,
+    "done": 19,
+    "inTicket": 0,
+    "inSpec": 0,
     "placeholder": 0,
     "deferred": 0,
     "dropped": 0
@@ -368,16 +373,22 @@ window.STATE =
         "PreviewOverlay",
         "MainWindow.xaml (статус)"
       ],
-      "status": "in-progress",
+      "status": "done",
       "startedAt": "2026-10-07T23:01:13+05:00",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "finishedAt": "2026-10-07T23:15:07+05:00",
+      "commit": "8c7456b",
+      "tests": {
+        "passed": 117,
+        "failed": 0
+      }
     }
   ],
   "singlePass": null,
   "tests": {
-    "passed": 108,
+    "passed": 117,
     "failed": 0
   },
   "debt": {
@@ -442,11 +453,29 @@ window.STATE =
     "ViewModels/CapturePanelViewModel.cs:24 — FrameExporter/StaWorker не освобождаются",
     "ViewModels/CapturePanelViewModel.cs:313 — при закрытии окно молча ждёт запись до 10 с",
     "Export/FrameExporter.Save.cs:169 — уникальность имени не учитывает _clean (безопасно лишь при одном потоке записи)",
-    "ТРИАЖ Phase 8: в таск 08 — LOH-буферы, закрытие/камера, Rendering, Повторить из демо, дебаунс сохранения, перечитывание после сброса, общий помощник диалогов (повтор в 4 тасках), автоэкспозиция, драйверы (таймаут/камера/гонка), тайм-лапс, _clean, освобождение экспортёра, ожидание при закрытии, захват линейки, прочерки статуса. В ОТЧЁТ: ResetSettings рефлексией, ZoomPanHost/SpotlightCard/Histogram мелкая оптимизация, PATH при проверке DLL, угол после перетаскивания плашки, размер плашки в файле (по спеке), уникальность имени _clean, U+200A в подписях. СНЯТО: GainsToTemperatureTint (законная трактовка), Stop без таймаута (закрывается пунктом про Shutdown)"
+    "ТРИАЖ Phase 8: в таск 08 — LOH-буферы, закрытие/камера, Rendering, Повторить из демо, дебаунс сохранения, перечитывание после сброса, общий помощник диалогов (повтор в 4 тасках), автоэкспозиция, драйверы (таймаут/камера/гонка), тайм-лапс, _clean, освобождение экспортёра, ожидание при закрытии, захват линейки, прочерки статуса. В ОТЧЁТ: ResetSettings рефлексией, ZoomPanHost/SpotlightCard/Histogram мелкая оптимизация, PATH при проверке DLL, угол после перетаскивания плашки, размер плашки в файле (по спеке), уникальность имени _clean, U+200A в подписях. СНЯТО: GainsToTemperatureTint (законная трактовка), Stop без таймаута (закрывается пунктом про Shutdown)",
+    "После 08 (в отчёт): LatestProcessedFrame — геттер с побочным эффектом Escape; SaveThrottle в файле FrameBufferPool.cs; после сброса настроек флажки сетки/перекрестия в «Измерениях» не перечитываются; реальный путь Kill установщика не покрыт тестом; после переустановки из демо демо не возвращается"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",
     "craft": "aa13cd7782a4444a5"
   },
-  "blind": null
+  "blind": {
+    "agreed": [
+      "R02 (по коду)",
+      "R05",
+      "R06",
+      "R07–R10",
+      "R11/R12",
+      "R13",
+      "G01"
+    ],
+    "drift": [
+      "R01 — слепая проверка: «частично»: диалог установки драйверов не показан, т.к. тестовый settings.json пользователя содержит PreferDemo=true (оставлен исполнителем таска 05); в коде флаг программой не ставится, диалог виден на скриншоте 03"
+    ],
+    "notVerifiable": [
+      "живая камера INFINITY 4",
+      "сама установка драйверов"
+    ]
+  }
 }
