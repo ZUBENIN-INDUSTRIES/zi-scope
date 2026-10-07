@@ -117,3 +117,17 @@ public partial class MainViewModel : ObservableObject {
 - `PreviewOverlay` — в Grid размером FrameWidth×FrameHeight внутри `ZoomPanHost` (тот же трансформ), Background=Transparent, DataContext=MainViewModel. Обработанный (Handled) левый MouseDown отменяет панорамирование. Средняя/правая кнопка панорамируют всегда.
 - Эффекты: `fx:ClickSpark.IsEnabled` (attached), `Entrance.Play(items)`, `CountUpText{Value, Format}`; палитра — `UI/Effects/Palette` + `Effects.xaml`; общие контролы — `UI/Controls/` (`ZoomPanHost`, `CardHeader`), конвертеры — `UI/Converters.cs`.
 - Из csproj убран `InvariantGlobalization` (ронял WPF-UI: «Cannot find non-neutral culture 'en-us'»).
+
+## Из таска 04 — камера и цвет
+
+- `static class ViewModels.AutoExposure { const Target=0.45, Tolerance=0.03, MinFactor=0.25, MaxFactor=4, SettleFrames=2, MaxIterations=8; bool IsOnTarget(double meanLuma); float NextExposure(float currentMs, double meanLuma, PropertyRange range) }`.
+- `CameraPanelViewModel`: `float? CurrentExposure`, `float? CurrentGain`, `void ApplyExposureGain(float? exposureMs, float? gain)`, `void ResetExposure()`, `RunAutoCommand`, `ResetFocusMaxCommand`, `double Sharpness/SharpnessMax`, `Histogram? Histogram`, `double ClippedPercent`, `bool IsSimulated`, `double DemoFocus`. **Для метаданных экспорта (таск 06) экспозицию/усиление брать отсюда: `host.CameraPanel.CurrentExposure/CurrentGain`.**
+- `ColorPanelViewModel`: `ObservableCollection<AdjustmentPreset> Presets`, `SelectedPreset` (выбор применяет), Apply/Save/DeletePresetCommand, ResetAllCommand, AutoWhiteBalanceCommand; следит за `host.PropertyChanged(Adjustments)`.
+- Общие контролы (переиспользуй): `UI.Controls.LabeledSlider` (UserControl: Label, Value TwoWay, Minimum, Maximum, DefaultValue — сброс двойным кликом, Step, Format, Suffix); `UI.Controls.HistogramView : FrameworkElement { Histogram? Histogram }`; `UI.Controls.LevelBar : FrameworkElement { double Value 0..1; double Marker 0..1/NaN }`.
+- В WPF-UI 4.3 нет символа `WandSparkle24` (ронял XAML при старте) — сверяйся с существующими `SymbolRegular`.
+
+## Из таска 03 — драйверы и поставка
+
+- `DriverService(string? driversFolder = null)` по контракту; `const string SilentArguments = "/S /v\"/qn REBOOT=ReallySuppress\""`; `static readonly TimeSpan InstallTimeout` (10 мин); `internal DriverService(string? folder, Func<bool> isInstalled, Func<ProcessStartInfo, TimeSpan, CancellationToken, Task<int>> runInstaller)` — тестовый шов; отмена через ct → Cancelled. `DriverInstallResult` — в `DriverService.cs`.
+- `DriverStartupFlow` по контракту; диалоги собираются в коде; ждёт до ~2 с регистрации `ContentDialogHost` при старте; `ReinstallAsync` сначала закрывает открытый ContentDialog (хост показывает один диалог за раз).
+- Упаковка: `installer\infinity*.exe` → `Drivers\` вывода и publish (копируется и в bin тестов через ProjectReference). `publish.ps1` → `dist\LumeneraViewer\` (exe ~71 МБ со сжатием single-file + `Drivers\` + `README.txt`); `dist/` в `.gitignore`.

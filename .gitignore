@@ -10,3 +10,6 @@ __pycache__/
 .autopilot/serve.*
 # Проприетарный установщик драйверов Lumenera (39 МБ) — лежит локально, в git не попадает
 installer/*.exe
+
+# Готовая папка для переноса (publish.ps1)
+dist/

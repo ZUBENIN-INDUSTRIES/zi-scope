@@ -17,6 +17,14 @@
     <InternalsVisibleTo Include="LumeneraViewer.Tests" />
   </ItemGroup>
 
+  <!-- Комплектный установщик драйверов (таск 03): installer\infinity*.exe → Drivers\ рядом с exe.
+       Шаблон: если установщика нет, сборка не падает, просто нечего копировать. -->
+  <ItemGroup>
+    <None Include="..\..\installer\infinity*.exe" LinkBase="Drivers"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />

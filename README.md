@@ -1,78 +1,114 @@
-# Lumenera INFINITY 4 Viewer
+# Lumenera Studio — программа для микроскопа с камерой Lumenera INFINITY 4
 
-Нативное Windows-приложение (WPF, .NET 8): живой предпросмотр видеопотока с камеры
-Lumenera INFINITY 4 и кнопка **Shot**, сохраняющая текущий кадр в PNG / JPEG / TIFF / BMP
-с максимальным качеством.
+Нативная программа для Windows (WPF, .NET 8, x64): живое изображение с камеры микроскопа,
+экспозиция и цвет, плашка масштаба, измерения и снимки в нужном формате. Тёмный интерфейс
+в духе reactbits.dev (WPF-UI + свои эффекты).
 
-## ВАЖНО: статус P/Invoke-слоя
+Программа ставится на любой компьютер без поиска драйверов в интернете: установщик драйверов
+лежит в комплекте, в папке `Drivers\`, и программа сама предлагает его запустить.
+В сеть программа не ходит.
 
-Код в `Camera/NativeMethods.cs` и `Camera/LuCamCamera.cs` вызывает `lucam.dll` из
-официального LuCam SDK. Сигнатуры функций (`LucamCameraOpen`, `LucamGetFormat`,
-`LucamStreamVideoControl`, `LucamAddStreamingCallback`, `LucamConvertFrameToRgb24` и т.д.)
-восстановлены по публично задокументированному API, который стабилен на протяжении многих
-версий SDK. Но у меня нет доступа к реальному заголовку из вашей установки, поэтому перед
-первым запуском на камере сверьте следующее с файлом
-`lucam.h` (обычно лежит в `C:\Program Files\Lumenera Corporation\LuCam Software\SDK\Inc\lucam.h`):
+## Возможности
 
-1. **Порядок и типы полей `LucamFrameFormat`** (`NativeMethods.cs`) — если приложение
-   падает при открытии камеры или получает мусорные width/height, скорее всего расходится
-   именно эта структура.
-2. **Числовые константы** `StreamControlStartStreaming` / `StreamControlStopStreaming`
-   (сейчас `1` / `2`) — проверьте значения `enum LUCAM_STREAM_VIDEO_CONTROL` в заголовке.
-3. **Калинг-конвенция колбэка** `LucamVideoFrameCallback` — если приложение падает с
-   access violation сразу после старта стрима, попробуйте заменить
-   `CallingConvention.StdCall` на `CallingConvention.Cdecl`.
-4. **Порядок байт цвета** — если превью выглядит с перепутанными красным/синим каналами,
-   замените `PixelFormats.Rgb24` на `PixelFormats.Bgr24` в двух местах в
-   `MainWindow.xaml.cs` (создание `WriteableBitmap` и `BitmapSource.Create` в `ShotButton_Click`).
+- **Драйверы из комплекта.** Нет `lucamapi.dll` — окно «Драйверы камеры не найдены»:
+  «Установить» (тихая установка с правами администратора, при неудаче — обычный мастер),
+  «Демо-режим», «Позже». После установки камера подключается без перезапуска.
+  Переустановка — меню «⋯» → «Установить/переустановить драйверы».
+- **Живое изображение** с зумом и перемещением, пауза, FPS и разрешение в статусе.
+- **Камера:** экспозиция и усиление (аппаратно), автоэкспозиция, индикатор фокуса.
+- **Цвет:** яркость, контраст, гамма, насыщенность, баланс белого, Ч/Б, негатив, пресеты.
+  Одна и та же обработка для экрана и файла.
+- **Масштаб:** профили объективов, калибровка по известной длине, плашка масштаба.
+- **Измерения:** линейка, сетка, перекрестие.
+- **Снимки:** PNG / JPEG / TIFF / BMP / JPEG XR, впечатывание плашки, серия по таймеру,
+  лента последних снимков.
+- **Демо-режим:** симулятор «микропрепарата» — всё можно попробовать без камеры.
+- Настройки сохраняются в `%AppData%\LumeneraViewer\settings.json`.
 
-Если пришлёте мне реальный `lucam.h` (или хотя бы фрагмент с этими объявлениями) — поправлю
-всё точно, без гадания.
-
-## Что установить на компьютер с камерой
-
-1. Драйверы и SDK Lumenera/Teledyne Lumenera для INFINITY 4 (обычно ставится вместе с
-   INFINITY Capture / INFINITY Analyze) — после установки в системе должен появиться
-   `lucam.dll` (в `System32` или в папке SDK, добавленной в `PATH`).
-2. Убедитесь, что `lucam.dll` — 64-битный (проект собирается под x64). Если SDK только
-   32-битный, смените `PlatformTarget` в `LumeneraViewer.csproj` на `x86`.
-3. [.NET 8 SDK](https://dotnet.microsoft.com/download) — нужен только на машине, где
-   собираете приложение, не на машине конечного пользователя (если публикуете
-   self-contained exe).
-
-## Сборка и запуск
+## Быстрый старт (разработчик)
 
 ```powershell
-dotnet build
+dotnet build LumeneraViewer.sln -c Debug
+dotnet test  LumeneraViewer.sln
 dotnet run --project src/LumeneraViewer
 ```
 
-## Публикация в один exe-файл
+Без камеры и драйверов программа покажет окно установки драйверов — выберите «Демо-режим».
+
+## Готовая папка для переноса: `publish.ps1`
 
 ```powershell
-dotnet publish src/LumeneraViewer -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+.\publish.ps1                                   # → dist\LumeneraViewer\
+.\publish.ps1 -Output D:\usb\LumeneraViewer     # в другое место
 ```
 
-Готовый `LumeneraViewer.exe` появится в
-`src/LumeneraViewer/bin/Release/net8.0-windows/win-x64/publish/`.
-`lucam.dll` при этом всё равно должен быть установлен драйверами Lumenera на целевой
-машине — в exe он не встраивается (это отдельный аппаратный драйвер, а не управляемая
-библиотека).
+Собирает self-contained single-file `LumeneraViewer.exe` (win-x64, Release) и кладёт рядом:
 
-## Как это устроено
+```
+dist\LumeneraViewer\
+  LumeneraViewer.exe      .NET на целевом компьютере не нужен
+  Drivers\infinity_analyze_and_capture_for_windows_v_6_5_6.exe
+  README.txt              инструкция для пользователя (из installer\README-УСТАНОВКА.txt)
+```
 
-- `Camera/LuCamCamera.cs` открывает камеру, запрашивает текущий формат кадра
-  (`LucamGetFormat` — что вернёт, то и снимается; если камера при включении не в режиме
-  полного разрешения без биннинга, здесь стоит добавить явный `LucamSetFormat`) и
-  запускает потоковую передачу через колбэк — то есть непрерывный видеопоток, а не
-  захват одного кадра по запросу.
-- Каждый кадр конвертируется из сырых данных сенсора в RGB24 через
-  `LucamConvertFrameToRgb24` (эта функция сама разбирается с Bayer-паттерном и т.п., так
-  что нам не нужно знать точные числовые коды pixelFormat).
-- `MainWindow.xaml.cs` забирает последний пришедший кадр на каждый тик рендеринга WPF
-  (`CompositionTarget.Rendering`) и обновляет `WriteableBitmap` — превью не отстаёт от
-  потока и не захлёбывается, даже если камера отдаёт кадры быстрее, чем экран обновляется.
-- Кнопка **Shot** берёт этот же последний кадр (то есть ровно то, что видно на экране, в
-  полном разрешении потока) и сохраняет его без потерь/с максимальным качеством:
-  PNG (без потерь), JPEG (`QualityLevel = 100`), TIFF (без сжатия), BMP (без потерь).
+Скрипт остановится с ошибкой, если в `installer\` нет установщика `infinity*.exe`.
+Установщик драйверов (≈39 МБ, проприетарный, Teledyne Lumenera) **не хранится в git**
+(`.gitignore: installer/*.exe`) — положите его в `installer\` локально. При обычной сборке
+он тоже копируется в `bin\...\Drivers\` (если его нет, сборка не падает).
+
+Как программа ставит драйверы: «драйверы есть» = `NativeLibrary.TryLoad("lucamapi.dll")`.
+Установщик — первый `*.exe` в `<папка программы>\Drivers\`, запускается с `Verb=runas`
+(UAC), сначала тихо: `/S /v"/qn REBOOT=ReallySuppress"`, таймаут 10 минут. Код 0 — успех,
+3010 — успех с рекомендацией перезагрузки; после успеха DLL перепроверяется. Код
+`src/LumeneraViewer/Drivers/`.
+
+## Окружение разработчика
+
+| Компонент | Нужен | Проверка | Установка |
+|---|---|---|---|
+| .NET 8 SDK (8.0.x) | **обязательно** | `dotnet --list-sdks` | `winget install Microsoft.DotNet.SDK.8` |
+| Git | рекомендуется | `git --version` | `winget install Git.Git` |
+| VS Code | рекомендуется | `code --version` | `winget install Microsoft.VisualStudioCode` |
+| C# Dev Kit для VS Code | рекомендуется | `code --list-extensions` (есть `ms-dotnettools.csdevkit`) | `code --install-extension ms-dotnettools.csdevkit` |
+| Visual Studio 2022 Community (дизайнер XAML, отладчик) | по желанию | `winget list Microsoft.VisualStudio.2022.Community` | `winget install Microsoft.VisualStudio.2022.Community --override "--add Microsoft.VisualStudio.Workload.ManagedDesktop --passive"` |
+| Inno Setup 6 (если захочется установщик вместо папки) | по желанию | `winget list JRSoftware.InnoSetup` | `winget install JRSoftware.InnoSetup` |
+
+Для сборки exe хватает .NET 8 SDK: `.\publish.ps1` делает всё остальное. NuGet-пакеты
+(WPF-UI, CommunityToolkit.Mvvm, xUnit) скачиваются автоматически при первой сборке.
+
+## Структура
+
+```
+src/LumeneraViewer/
+  Camera/      ICamera, LuCamCamera (P/Invoke lucamapi.dll), SimulatedCamera, CameraFactory
+  Drivers/     DriverService (поиск и запуск установщика), DriverStartupFlow (диалоги)
+  Imaging/     коррекция цвета, гистограмма, резкость
+  Overlays/    плашка масштаба, калибровка, измерения
+  Export/      запись снимков
+  Settings/    AppSettings, SettingsStore
+  ViewModels/  MainViewModel и модели карточек
+  Views/, UI/  окно, карточки, эффекты
+tests/LumeneraViewer.Tests/   xUnit, чистая логика
+installer/   установщик драйверов (локально) и README-УСТАНОВКА.txt
+publish.ps1  сборка папки для переноса
+```
+
+## Сверка P/Invoke с живой камерой
+
+Камеры на машине разработки не было, поэтому слой `Camera/NativeMethods.cs` и
+`Camera/LuCamCamera.cs` собран по публичному LuCam SDK. Библиотека — **`lucamapi.dll`**
+(так она называется в пакете драйверов INFINITY ANALYZE/CAPTURE 6.5.6), x64. При первом
+запуске на микроскопе проверьте:
+
+1. **Камера открывается и идёт поток.** Если падает при открытии или размеры кадра
+   странные — сверьте структуру `LUCAM_FRAME_FORMAT` (28 байт: `xOffset, yOffset, width,
+   height, pixelFormat` — ULONG; `subSampleX, flagsX, subSampleY, flagsY` — USHORT) с
+   `lucam.h` из SDK.
+2. **Константы потока:** `LucamStreamVideoControl` — STOP=0, START_STREAMING=1.
+3. **Цвета.** Перепутаны красный и синий — меню «⋯» → «Дополнительно» → «Поменять местами
+   R и B» (пересборка не нужна). Там же метод дебайеринга.
+4. **Свойства:** EXPOSURE=20 (мс), GAIN=40 — проверьте диапазоны в карточке «Камера».
+5. **Версия:** серийный номер в статусе берётся из `LucamQueryVersion`.
+
+Если что-то расходится, пришлите фрагмент `lucam.h` (обычно
+`C:\Program Files\Lumenera Corporation\LuCam Software\SDK\Inc\lucam.h`) — правка точечная.

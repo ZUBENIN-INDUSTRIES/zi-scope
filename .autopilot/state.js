@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T19:26:24+05:00",
+  "updatedAt": "2026-10-07T19:38:01+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -49,13 +49,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-07T18:58:38+05:00",
-      "note": "1 из 6 тасков готов"
+      "note": "2 из 6 тасков готовы"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-07T19:08:00+05:00",
-      "note": "проверено 1 из 6"
+      "note": "проверено 2 из 6"
     },
     {
       "id": "final",
@@ -147,11 +147,24 @@ window.STATE =
         "Views/",
         "UI/"
       ],
-      "status": "review",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-07T19:11:41+05:00"
+      "startedAt": "2026-10-07T19:11:41+05:00",
+      "finishedAt": "2026-10-07T19:28:03+05:00",
+      "commit": "ffb107c",
+      "tests": {
+        "passed": 22,
+        "failed": 0
+      },
+      "files": [
+        "App",
+        "MainWindow",
+        "ViewModels/",
+        "Views/",
+        "UI/"
+      ]
     },
     {
       "id": "03",
@@ -178,10 +191,11 @@ window.STATE =
         "installer/",
         "README.md"
       ],
-      "status": "pending",
+      "status": "review",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-07T19:28:03+05:00"
     },
     {
       "id": "04",
@@ -208,10 +222,11 @@ window.STATE =
         "ColorPanel",
         "UI/Controls/"
       ],
-      "status": "pending",
+      "status": "review",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-07T19:28:03+05:00"
     },
     {
       "id": "05",
@@ -236,10 +251,11 @@ window.STATE =
         "MeasurePanel",
         "PreviewOverlay"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-07T19:28:03+05:00"
     },
     {
       "id": "06",
@@ -270,7 +286,7 @@ window.STATE =
   ],
   "singlePass": null,
   "tests": {
-    "passed": 22,
+    "passed": 73,
     "failed": 0
   },
   "debt": {
@@ -311,7 +327,9 @@ window.STATE =
     "ViewModels/MainViewModel.cs:80 — CompositionTarget.Rendering подписан всегда",
     "ViewModels/MainViewModel.cs:547 — ResetSettings копирует свойства рефлексией",
     "UI/Controls/ZoomPanHost.cs:84 — BeginInvoke на каждом ArrangeOverride",
-    "UI/Effects/SpotlightCard.cs:403 — новые кисти на каждое движение мыши"
+    "UI/Effects/SpotlightCard.cs:403 — новые кисти на каждое движение мыши",
+    "ViewModels/MainViewModel.cs:287 — «Повторить» из демо без камеры закрывает работающий демо-режим",
+    "R04 — раздел «Как добавить свою функцию» в CLAUDE.md не был в тасках: пишет оркестратор в Phase 8"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",
