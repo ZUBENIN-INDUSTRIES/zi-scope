@@ -107,3 +107,13 @@ public partial class MainViewModel : ObservableObject {
 - (ремонт 01) `SettingsStore : IDisposable`; `event Action<Exception>? SaveFailed` — ошибка отложенного сохранения наружу не бросается; `ScheduleSave` сериализует снимок в момент вызова; `Flush()` при ошибке бросает; `Dispose()` = Flush без исключений + остановка таймера.
 - (ремонт 01) `LuCamCamera.Stop()` ждёт поток конвертации **без таймаута**. **Правило для UI: из обработчиков `FrameReceived` / `RawFrameReady` / `ProcessedFrameReady` в UI-поток — только `Dispatcher.BeginInvoke`, никогда `Invoke`**, иначе Stop из UI-потока зависнет.
 - (ремонт 01) `ImageAdjustments.Saturation` клампится в 0..200.
+
+## Из таска 02 — оболочка
+
+- `MainViewModel(Window owner, SettingsStore store)` — по контракту, плюс: `double PreviewZoom {get;set;}` (observable; экранных px на пиксель кадра; пишет окно — **так оверлей узнаёт зум**), `string SettingsPath`, `void ResetSettings()`, `void Shutdown()`, `bool IsPanelCollapsed`, `double Fps`, `WriteableBitmap? PreviewBitmap`, команды Retry/Demo/InstallDrivers/ToggleFreeze/TogglePanel/ShowAdvanced.
+- `LatestRawFrame` — raw-кадр, из которого получен `LatestProcessedFrame`; в паузе заморожен. При `Adjustments.IsIdentity` обработанный кадр — **тот же объект**, что raw (не мутировать кадры!). `StartDemo()` — fire-and-forget. `Notify` можно звать из любого потока.
+- Диалоги: `new ContentDialog(ContentDialogHost.GetForWindow(host.Owner))` (хост уже в MainWindow).
+- Карточки панели в MainWindow: `fx:SpotlightCard > StackPanel{ c:CardHeader Title Icon; v:XxxPanel DataContext="{Binding XxxPanel}" }` — слот получает свой sub-VM как DataContext. Лента: `v:GalleryStrip DataContext=Gallery`, карточка высотой 96 px.
+- `PreviewOverlay` — в Grid размером FrameWidth×FrameHeight внутри `ZoomPanHost` (тот же трансформ), Background=Transparent, DataContext=MainViewModel. Обработанный (Handled) левый MouseDown отменяет панорамирование. Средняя/правая кнопка панорамируют всегда.
+- Эффекты: `fx:ClickSpark.IsEnabled` (attached), `Entrance.Play(items)`, `CountUpText{Value, Format}`; палитра — `UI/Effects/Palette` + `Effects.xaml`; общие контролы — `UI/Controls/` (`ZoomPanHost`, `CardHeader`), конвертеры — `UI/Converters.cs`.
+- Из csproj убран `InvariantGlobalization` (ронял WPF-UI: «Cannot find non-neutral culture 'en-us'»).

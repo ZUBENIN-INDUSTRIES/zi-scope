@@ -1,159 +1,130 @@
-using System.IO;
+using System.ComponentModel;
 using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using LumeneraViewer.Camera;
-using Microsoft.Win32;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using LumeneraViewer.Settings;
+using LumeneraViewer.UI.Effects;
+using LumeneraViewer.ViewModels;
+using Wpf.Ui.Controls;
 
 namespace LumeneraViewer;
 
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
-    private readonly ICamera _camera = CameraFactory.IsDriverAvailable() ? CameraFactory.CreateReal(new LumeneraViewer.Settings.CameraSettings()) : CameraFactory.CreateSimulated();
-    private readonly object _frameLock = new();
-    private CameraFrame? _latestFrame;
-    private bool _hasNewFrame;
-    private WriteableBitmap? _bitmap;
+    private readonly MainViewModel _vm;
+    private bool _fullScreen;
+    private WindowState _stateBeforeFullScreen;
 
     public MainWindow()
     {
         InitializeComponent();
+        _vm = new MainViewModel(this, new SettingsStore());
+        _vm.AttachSnackbar(SnackbarPresenter);
+        DataContext = _vm;
 
-        OutputFolderTextBox.Text = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "LumeneraCaptures");
+        var w = _vm.Settings.Window;
+        Width = Math.Max(MinWidth, w.Width);
+        Height = Math.Max(MinHeight, w.Height);
+        if (w.Maximized) WindowState = WindowState.Maximized;
 
-        _camera.FrameReceived += OnCameraFrameReceived;
-        _camera.Error += message => Dispatcher.BeginInvoke(() => StatusText.Text = message);
-
-        Loaded += (_, _) => ConnectCamera();
-        Closing += (_, _) => _camera.Dispose();
-        CompositionTarget.Rendering += CompositionTarget_Rendering;
+        Loaded += OnLoaded;
+        Closing += OnClosing;
+        PreviewKeyDown += OnPreviewKeyDown;
     }
 
-    private void ConnectCamera()
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            _camera.Close();
-            _camera.Open();
-            _camera.Start();
-            StatusText.Text = $"Подключено: {_camera.Info?.Width}x{_camera.Info?.Height}, поток запущен.";
-        }
-        catch (DllNotFoundException)
-        {
-            StatusText.Text = "Не найден lucam.dll. Установите драйверы и SDK для Lumenera INFINITY.";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = $"Ошибка подключения: {ex.Message}";
-        }
+        Entrance.Play(Cards.Children.OfType<UIElement>());
+        await _vm.InitializeAsync();
     }
 
-    private void OnCameraFrameReceived(CameraFrame frame)
+    private void OnClosing(object? sender, CancelEventArgs e)
     {
-        lock (_frameLock)
-        {
-            _latestFrame = frame;
-            _hasNewFrame = true;
-        }
+        var w = _vm.Settings.Window;
+        var bounds = WindowState == WindowState.Normal && !_fullScreen ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        if (!bounds.IsEmpty) { w.Width = bounds.Width; w.Height = bounds.Height; }
+        w.Maximized = WindowState == WindowState.Maximized && !_fullScreen;
+        _vm.Shutdown();
     }
 
-    private void CompositionTarget_Rendering(object? sender, EventArgs e)
+    private void Fit_Click(object sender, RoutedEventArgs e) => Zoom.FitToView();
+    private void ActualPixels_Click(object sender, RoutedEventArgs e) => Zoom.ActualPixels();
+
+    private void More_Click(object sender, RoutedEventArgs e)
     {
-        CameraFrame? frame = null;
-        lock (_frameLock)
-        {
-            if (_hasNewFrame)
-            {
-                frame = _latestFrame;
-                _hasNewFrame = false;
-            }
-        }
-
-        if (frame is null)
-            return;
-
-        if (_bitmap is null || _bitmap.PixelWidth != frame.Width || _bitmap.PixelHeight != frame.Height)
-        {
-            _bitmap = new WriteableBitmap(frame.Width, frame.Height, 96, 96, PixelFormats.Bgr24, null);
-            PreviewImage.Source = _bitmap;
-        }
-
-        var rect = new Int32Rect(0, 0, frame.Width, frame.Height);
-        _bitmap.WritePixels(rect, frame.Bgr24, frame.Width * 3, 0);
+        var menu = MoreButton.ContextMenu!;
+        menu.PlacementTarget = MoreButton;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
     }
 
-    private void ShotButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>Горячие клавиши. Не срабатывают, пока фокус в поле ввода.</summary>
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        CameraFrame? frame;
-        lock (_frameLock)
+        if (IsTextInputFocused()) return;
+        var ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+
+        switch (key)
         {
-            frame = _latestFrame;
+            case Key.Space when !ctrl:
+                if (_vm.CapturePanel.CaptureCommand.CanExecute(null)) _vm.CapturePanel.CaptureCommand.Execute(null);
+                break;
+            case Key.F when !ctrl:
+                _vm.IsFrozen = !_vm.IsFrozen;
+                break;
+            case Key.F11:
+                ToggleFullScreen();
+                break;
+            case Key.Tab when !ctrl:
+                _vm.IsPanelCollapsed = !_vm.IsPanelCollapsed;
+                break;
+            case Key.D0 or Key.NumPad0 when ctrl:
+                Zoom.FitToView();
+                break;
+            case Key.D1 or Key.NumPad1 when ctrl:
+                Zoom.ActualPixels();
+                break;
+            case Key.Escape:
+                if (_vm.ActiveTool != PreviewTool.None) _vm.ActiveTool = PreviewTool.None;
+                else if (_fullScreen) ToggleFullScreen();
+                else return;
+                break;
+            default:
+                return;
         }
-
-        if (frame is null)
-        {
-            StatusText.Text = "Нет кадра для сохранения — поток ещё не запущен.";
-            return;
-        }
-
-        try
-        {
-            var folder = OutputFolderTextBox.Text;
-            Directory.CreateDirectory(folder);
-
-            var format = (FormatComboBox.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? "png";
-            var fileName = $"Lumenera_{DateTime.Now:yyyyMMdd_HHmmss_fff}.{format}";
-            var path = Path.Combine(folder, fileName);
-
-            var source = BitmapSource.Create(
-                frame.Width, frame.Height, 96, 96, PixelFormats.Bgr24, null, frame.Bgr24, frame.Width * 3);
-
-            BitmapEncoder encoder = format switch
-            {
-                "jpg" => new JpegBitmapEncoder { QualityLevel = 100 },
-                "tif" => new TiffBitmapEncoder { Compression = TiffCompressOption.None },
-                "bmp" => new BmpBitmapEncoder(),
-                _ => new PngBitmapEncoder(),
-            };
-            encoder.Frames.Add(BitmapFrame.Create(source));
-
-            using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write))
-            {
-                encoder.Save(stream);
-            }
-
-            StatusText.Text = $"Сохранено: {path}";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = $"Ошибка сохранения: {ex.Message}";
-        }
+        e.Handled = true;
     }
 
-    private void BrowseButton_Click(object sender, RoutedEventArgs e)
+    private static bool IsTextInputFocused() => Keyboard.FocusedElement is TextBoxBase or System.Windows.Controls.PasswordBox
+        || (Keyboard.FocusedElement is DependencyObject d && FindAncestor<ComboBox>(d) is { IsEditable: true })
+        || Keyboard.FocusedElement is DependencyObject p && FindAncestor<ContentDialog>(p) is not null;
+
+    private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject
     {
-        var dialog = new OpenFolderDialog
-        {
-            InitialDirectory = Directory.Exists(OutputFolderTextBox.Text) ? OutputFolderTextBox.Text : null,
-        };
+        for (var cur = d; cur is not null; cur = System.Windows.Media.VisualTreeHelper.GetParent(cur) ?? LogicalTreeHelper.GetParent(cur))
+            if (cur is T t) return t;
+        return null;
+    }
 
-        if (dialog.ShowDialog() == true)
+    private void ToggleFullScreen()
+    {
+        _fullScreen = !_fullScreen;
+        if (_fullScreen)
         {
-            OutputFolderTextBox.Text = dialog.FolderName;
+            _stateBeforeFullScreen = WindowState;
+            TitleBar.Visibility = Visibility.Collapsed;
+            WindowState = WindowState.Normal; // иначе развёрнутое окно не перекроет панель задач
+            WindowStyle = WindowStyle.None;
+            ResizeMode = ResizeMode.NoResize;
+            WindowState = WindowState.Maximized;
+        }
+        else
+        {
+            TitleBar.Visibility = Visibility.Visible;
+            ResizeMode = ResizeMode.CanResize;
+            WindowState = _stateBeforeFullScreen;
         }
     }
-
-    private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
-    {
-        var folder = OutputFolderTextBox.Text;
-        Directory.CreateDirectory(folder);
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = folder,
-            UseShellExecute = true,
-        });
-    }
-
-    private void ReconnectButton_Click(object sender, RoutedEventArgs e) => ConnectCamera();
 }

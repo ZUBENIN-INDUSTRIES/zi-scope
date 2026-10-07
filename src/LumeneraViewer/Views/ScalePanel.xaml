@@ -1,0 +1,6 @@
+<UserControl x:Class="LumeneraViewer.Views.ScalePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Заглушка слота (таск 05). DataContext — ScalePanelViewModel. -->
+    <TextBlock Text="Объективы, калибровка и плашка масштаба появятся здесь." Style="{StaticResource MutedText}"/>
+</UserControl>

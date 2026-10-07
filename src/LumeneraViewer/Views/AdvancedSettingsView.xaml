@@ -1,0 +1,45 @@
+<UserControl x:Class="LumeneraViewer.Views.AdvancedSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             MinWidth="440">
+    <StackPanel>
+        <TextBlock Text="Камера" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Индекс камеры (1–8)" VerticalAlignment="Center"/>
+            <ui:NumberBox Grid.Column="1" Minimum="1" Maximum="8" SmallChange="1" MaxDecimalPlaces="0"
+                          Value="{Binding CameraIndex, UpdateSourceTrigger=PropertyChanged}"/>
+        </Grid>
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Поменять местами R и B" VerticalAlignment="Center"/>
+            <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SwapRedBlue}"/>
+        </Grid>
+        <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Метод дебайеринга" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding DemosaicMethods}" SelectedIndex="{Binding DemosaicIndex}"/>
+        </Grid>
+
+        <TextBlock Text="Служебное" FontWeight="SemiBold" Margin="0,4,0,8"/>
+        <WrapPanel>
+            <ui:Button Content="Установить/переустановить драйверы" Icon="{ui:SymbolIcon ArrowDownload24}"
+                       Command="{Binding InstallDriversCommand}" Margin="0,0,8,8"/>
+            <ui:Button Content="Открыть папку настроек" Icon="{ui:SymbolIcon Folder24}"
+                       Command="{Binding OpenSettingsFolderCommand}" Margin="0,0,8,8"/>
+            <ui:Button Content="Сбросить настройки" Icon="{ui:SymbolIcon ArrowReset24}" Appearance="Danger"
+                       Command="{Binding ResetSettingsCommand}" Margin="0,0,8,8"/>
+        </WrapPanel>
+        <TextBlock Text="Изменения камеры переподключают её после «Применить»." Opacity="0.6" FontSize="12" Margin="0,4,0,0"/>
+    </StackPanel>
+</UserControl>

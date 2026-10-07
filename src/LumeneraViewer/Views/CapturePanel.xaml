@@ -1,0 +1,6 @@
+<UserControl x:Class="LumeneraViewer.Views.CapturePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Заглушка слота (таск 06). DataContext — CapturePanelViewModel. -->
+    <TextBlock Text="Папка, формат и серия снимков появятся здесь." Style="{StaticResource MutedText}"/>
+</UserControl>

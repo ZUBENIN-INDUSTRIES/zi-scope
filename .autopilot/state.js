@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T19:09:22+05:00",
+  "updatedAt": "2026-10-07T19:26:24+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -48,12 +48,14 @@ window.STATE =
     {
       "id": "build",
       "status": "active",
-      "startedAt": "2026-10-07T18:58:38+05:00"
+      "startedAt": "2026-10-07T18:58:38+05:00",
+      "note": "1 из 6 тасков готов"
     },
     {
       "id": "review",
       "status": "active",
-      "startedAt": "2026-10-07T19:08:00+05:00"
+      "startedAt": "2026-10-07T19:08:00+05:00",
+      "note": "проверено 1 из 6"
     },
     {
       "id": "final",
@@ -94,7 +96,7 @@ window.STATE =
         "csproj",
         "tests/"
       ],
-      "status": "repair",
+      "status": "done",
       "retries": 0,
       "repairs": 1,
       "handoffs": 0,
@@ -102,6 +104,18 @@ window.STATE =
       "repairFindings": [
         "SettingsStore: исключение в отложенном сохранении роняет процесс; сериализация живого объекта",
         "LuCamCamera: защита от короткого буфера и закрытия хэндла во время конвертации (решение оркестратора — не воспроизводится без камеры)"
+      ],
+      "finishedAt": "2026-10-07T19:11:41+05:00",
+      "commit": "deee21b",
+      "tests": {
+        "passed": 22,
+        "failed": 0
+      },
+      "files": [
+        "Camera/",
+        "Settings/",
+        "Imaging/",
+        "tests/"
       ]
     },
     {
@@ -133,10 +147,11 @@ window.STATE =
         "Views/",
         "UI/"
       ],
-      "status": "pending",
+      "status": "review",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-07T19:11:41+05:00"
     },
     {
       "id": "03",
@@ -254,7 +269,10 @@ window.STATE =
     }
   ],
   "singlePass": null,
-  "tests": null,
+  "tests": {
+    "passed": 22,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [
       "R15i — мкм/пиксель объективов: калибрует пользователь в программе"
@@ -284,7 +302,16 @@ window.STATE =
   },
   "concerns": [
     "Camera/LuCamCamera.cs — сигнатуры LuCam не проверены на живой камере (нет устройства)",
-    "Imaging/ImageProcessor.cs:208 — GainsToTemperatureTint нормирует на (r+b)/2 перед формулой (законная трактовка спеки)"
+    "Imaging/ImageProcessor.cs:208 — GainsToTemperatureTint нормирует на (r+b)/2 перед формулой (законная трактовка спеки)",
+    "Camera/LuCamCamera.cs:93 — Stop ждёт поток конвертации без таймаута; UI обязан использовать только BeginInvoke",
+    "ViewModels/MainViewModel.cs:482 — 8 МБ LOH на кадр при не-identity коррекции (~200 МБ/с), нужен пул/ротация буферов",
+    "ViewModels/MainViewModel.cs:559 — Shutdown закрывает камеру синхронно в UI-потоке (Join без таймаута) — риск зависания при закрытии",
+    "ViewModels/MainViewModel.cs:298 — закрытие окна во время Open/Start оставляет камеру открытой",
+    "ViewModels/MainViewModel.cs:39 — обработчики событий камеры в общих полях, а не привязаны к экземпляру",
+    "ViewModels/MainViewModel.cs:80 — CompositionTarget.Rendering подписан всегда",
+    "ViewModels/MainViewModel.cs:547 — ResetSettings копирует свойства рефлексией",
+    "UI/Controls/ZoomPanHost.cs:84 — BeginInvoke на каждом ArrangeOverride",
+    "UI/Effects/SpotlightCard.cs:403 — новые кисти на каждое движение мыши"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",

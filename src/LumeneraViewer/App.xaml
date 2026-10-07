@@ -1,5 +1,19 @@
 <Application x:Class="LumeneraViewer.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:local="clr-namespace:LumeneraViewer.UI"
              StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Dark"/>
+                <ui:ControlsDictionary/>
+                <ResourceDictionary Source="/LumeneraViewer;component/UI/Effects/Effects.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <local:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <local:EqualsConverter x:Key="Equals"/>
+            <local:StateToBrushConverter x:Key="StateBrush"/>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>
