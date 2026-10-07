@@ -141,3 +141,15 @@ public partial class MainViewModel : ObservableObject {
 - `ScalePanelViewModel`: `event Action? Changed` (UI-поток), `RaiseChanged(bool save=true)`, `MicronsPerPixel`, `IsCalibrated`, `Task CompleteCalibrationAsync(Point,Point)`, `SetCustomPosition(fx,fy,save)`. `MeasurePanelViewModel`: `Items` (`ObservableCollection<MeasurementItem{Measurement,Number,Label}>`), `Add(Measurement)`. Измерения живут только в сессии (не в настройках).
 - (ревью 05) Масштаб оверлея на превью = 1/зум, в файле = `ExportScale(W)` = W/1600 — так задано спецификацией; относительно кадра плашка в файле меньше, чем на экране «вписать». `CustomPosition` — левый верхний угол плашки в долях кадра.
 - (ревью 05) Диалоги сейчас собираются в трёх местах по-разному (ColorPanel, ScalePanel.AskTextAsync/ConfirmAsync, DriverStartupFlow); всегда проверяй `ContentDialogHost.GetForWindow(host.Owner)` на null.
+
+## Из таска 06 — сохранение
+
+- `record CaptureMetadata(DateTime Time, string? CameraModel, string? CameraSerial, bool IsSimulated, float? ExposureMs, float? Gain, ImageAdjustments Adjustments, string? Objective, double? MicronsPerPixel)`.
+- `sealed partial class FrameExporter : IDisposable` — `SaveAsync` по контракту (ExportSettings копируется в момент вызова), `int Pending`, `bool WaitIdle(TimeSpan)`, `static IReadOnlySet<string> SupportedExtensions`, `BuildFileName/Extension` (.png .jpg .tif .bmp .jxr). Чистая копия `<имя>_clean.<ext>`, JSON `<имя>.json`; при совпадении имени — суффикс _2, _3…
+- `sealed class StaWorker(string name) : IDisposable { Task<T> Run<T>(Func<T>); int Pending; bool WaitIdle(TimeSpan) }` — один фоновый STA-поток с очередью (для RenderTargetBitmap/энкодеров).
+- `CapturePanelViewModel`: CaptureCommand (параллельные вызовы разрешены), ToggleTimelapseCommand, Browse/OpenFolderCommand, IsRunning, ShotsTaken, ProgressText, NextShotText, IsSaving, StatusText; на `Owner.Closing` останавливает серию и ждёт запись до 10 с. Относительная папка экспорта отклоняется с уведомлением.
+- `GalleryViewModel`: `Items` (`GalleryItem{Path, FileName, Thumbnail}`), `IsEmpty`, `Reload()`, `Add(path)`, Open/ShowInFolder/DeleteCommand.
+
+## Из таска 07 — панель статуса
+
+- `UI.Controls.StatusSegment : ContentControl { string Caption; string CaptionText (read-only, заглавными); SymbolRegular Icon; object? Indicator (вместо иконки) }`, шаблон — неявный стиль в `Effects.xaml`. Стили: `StatusPanel` (стекло, радиус 10, высота 50), `StatusDivider`, `StatusValue`, `StatusTag` (радиус 4). Стиль `ChipBorder` удалён.

@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T19:43:24+05:00",
+  "updatedAt": "2026-10-07T22:55:53+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -49,13 +49,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-07T18:58:38+05:00",
-      "note": "4 из 6 тасков готовы"
+      "note": "6 из 7 тасков готовы"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-07T19:08:00+05:00",
-      "note": "проверено 4 из 6"
+      "note": "проверено 6 из 7"
     },
     {
       "id": "final",
@@ -63,9 +63,9 @@ window.STATE =
     }
   ],
   "requirements": {
-    "total": 18,
+    "total": 19,
     "done": 0,
-    "inTicket": 17,
+    "inTicket": 18,
     "inSpec": 1,
     "placeholder": 0,
     "deferred": 0,
@@ -263,7 +263,7 @@ window.STATE =
         "MeasurePanel",
         "PreviewOverlay"
       ],
-      "status": "repair",
+      "status": "done",
       "retries": 0,
       "repairs": 1,
       "handoffs": 0,
@@ -271,7 +271,13 @@ window.STATE =
       "repairFindings": [
         "подпись плашки «0 мм» при малых длинах (плашка врёт — R15i.2)",
         "калибровка пишется в объектив, выбранный после диалога"
-      ]
+      ],
+      "finishedAt": "2026-10-07T19:45:33+05:00",
+      "commit": "496f988",
+      "tests": {
+        "passed": 88,
+        "failed": 0
+      }
     },
     {
       "id": "06",
@@ -294,16 +300,44 @@ window.STATE =
         "CapturePanel",
         "GalleryStrip"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-07T19:43:24+05:00"
+      "startedAt": "2026-10-07T19:43:24+05:00",
+      "finishedAt": "2026-10-07T22:55:53+05:00",
+      "commit": "a55a6a3",
+      "tests": {
+        "passed": 108,
+        "failed": 0
+      }
+    },
+    {
+      "id": "07",
+      "title": "Шапка: панель статуса вместо капсул",
+      "requirements": [
+        "G01",
+        "R11",
+        "R03.1"
+      ],
+      "blockedBy": [
+        "02"
+      ],
+      "wave": 4,
+      "zone": [
+        "MainWindow.xaml (шапка)",
+        "UI/Controls/"
+      ],
+      "status": "in-progress",
+      "startedAt": "2026-10-07T19:55:02+05:00",
+      "retries": 1,
+      "repairs": 0,
+      "handoffs": 0
     }
   ],
   "singlePass": null,
   "tests": {
-    "passed": 73,
+    "passed": 108,
     "failed": 0
   },
   "debt": {
@@ -360,7 +394,14 @@ window.STATE =
     "ViewModels/ScalePanelViewModel.cs:314 — третья копия сборки ContentDialog, нужен общий помощник",
     "Views/PreviewOverlay.xaml.cs:91 — между кликами линейки мышь не захвачена: клик вне кадра уходит в панораму",
     "ViewModels/ScalePanelViewModel.cs:26 — ObjectiveNames не перечитываются после «Сбросить настройки»",
-    "Плашка: список угла показывает угол, хотя плашка перетащена"
+    "Плашка: список угла показывает угол, хотя плашка перетащена",
+    "Сессию прервал лимит API (~19:55–22:54): таск 07 перезапущен с нуля, ревью 06 повторено",
+    "ViewModels/GalleryViewModel.cs:146 — «Удалить» оставляет копию _clean сиротой",
+    "ViewModels/GalleryViewModel.cs:157 — четвёртая копия ContentDialog-подтверждения",
+    "ViewModels/CapturePanelViewModel.cs:255 — старый цикл тайм-лапса может затереть счётчик новой серии",
+    "ViewModels/CapturePanelViewModel.cs:24 — FrameExporter/StaWorker не освобождаются",
+    "ViewModels/CapturePanelViewModel.cs:313 — при закрытии окно молча ждёт запись до 10 с",
+    "Export/FrameExporter.Save.cs:169 — уникальность имени не учитывает _clean (безопасно лишь при одном потоке записи)"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",
