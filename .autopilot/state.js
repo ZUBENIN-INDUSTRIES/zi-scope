@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T19:38:01+05:00",
+  "updatedAt": "2026-10-07T19:43:24+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -49,13 +49,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-07T18:58:38+05:00",
-      "note": "2 из 6 тасков готовы"
+      "note": "4 из 6 тасков готовы"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-07T19:08:00+05:00",
-      "note": "проверено 2 из 6"
+      "note": "проверено 4 из 6"
     },
     {
       "id": "final",
@@ -191,11 +191,17 @@ window.STATE =
         "installer/",
         "README.md"
       ],
-      "status": "review",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-07T19:28:03+05:00"
+      "startedAt": "2026-10-07T19:28:03+05:00",
+      "finishedAt": "2026-10-07T19:39:51+05:00",
+      "commit": "dca33ac",
+      "tests": {
+        "passed": 73,
+        "failed": 0
+      }
     },
     {
       "id": "04",
@@ -222,11 +228,17 @@ window.STATE =
         "ColorPanel",
         "UI/Controls/"
       ],
-      "status": "review",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-07T19:28:03+05:00"
+      "startedAt": "2026-10-07T19:28:03+05:00",
+      "finishedAt": "2026-10-07T19:39:51+05:00",
+      "commit": "b74a99c",
+      "tests": {
+        "passed": 73,
+        "failed": 0
+      }
     },
     {
       "id": "05",
@@ -251,11 +263,15 @@ window.STATE =
         "MeasurePanel",
         "PreviewOverlay"
       ],
-      "status": "in-progress",
+      "status": "repair",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 1,
       "handoffs": 0,
-      "startedAt": "2026-10-07T19:28:03+05:00"
+      "startedAt": "2026-10-07T19:28:03+05:00",
+      "repairFindings": [
+        "подпись плашки «0 мм» при малых длинах (плашка врёт — R15i.2)",
+        "калибровка пишется в объектив, выбранный после диалога"
+      ]
     },
     {
       "id": "06",
@@ -278,10 +294,11 @@ window.STATE =
         "CapturePanel",
         "GalleryStrip"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-07T19:43:24+05:00"
     }
   ],
   "singlePass": null,
@@ -329,7 +346,21 @@ window.STATE =
     "UI/Controls/ZoomPanHost.cs:84 — BeginInvoke на каждом ArrangeOverride",
     "UI/Effects/SpotlightCard.cs:403 — новые кисти на каждое движение мыши",
     "ViewModels/MainViewModel.cs:287 — «Повторить» из демо без камеры закрывает работающий демо-режим",
-    "R04 — раздел «Как добавить свою функцию» в CLAUDE.md не был в тасках: пишет оркестратор в Phase 8"
+    "R04 — раздел «Как добавить свою функцию» в CLAUDE.md не был в тасках: пишет оркестратор в Phase 8",
+    "ViewModels/CameraPanelViewModel.cs:209 — MeanLuma автоэкспозиции считается в потоке камеры; таймер ожидания не отменяется; RunAuto не отменяется при смене камеры",
+    "ViewModels/ColorPanelViewModel.cs:66 — Presets не перечитываются после «Сбросить настройки» → удалённые пресеты возвращаются",
+    "ViewModels/ColorPanelViewModel.cs:89 — SaveSettingsSoon сериализует AppSettings на каждый тик слайдера в UI-потоке",
+    "ViewModels/ColorPanelViewModel.cs:197 — ContentDialogHost без проверки на null (в отличие от других мест)",
+    "Drivers/DriverService.cs:88 — по таймауту процесс установщика не завершается, а мастер предлагается сразу (риск MSI 1618)",
+    "Drivers/DriverStartupFlow.cs:60 — обещание «камера будет отключена» не выполняется: камера не закрывается перед установкой",
+    "Drivers/DriverStartupFlow.cs:143 — гонка: быстрый отказ UAC может оставить диалог прогресса без кнопок",
+    "Drivers/DriverService.cs:83 — повторная проверка DLL видит PATH на момент старта процесса",
+    "UI/Controls/HistogramView.cs:302 — геометрия Luma строится дважды",
+    "Overlays — WYSIWYG: размер плашки в файле (W/1600) меньше, чем на экране «вписать»; CustomPosition от левого верхнего угла",
+    "ViewModels/ScalePanelViewModel.cs:314 — третья копия сборки ContentDialog, нужен общий помощник",
+    "Views/PreviewOverlay.xaml.cs:91 — между кликами линейки мышь не захвачена: клик вне кадра уходит в панораму",
+    "ViewModels/ScalePanelViewModel.cs:26 — ObjectiveNames не перечитываются после «Сбросить настройки»",
+    "Плашка: список угла показывает угол, хотя плашка перетащена"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",

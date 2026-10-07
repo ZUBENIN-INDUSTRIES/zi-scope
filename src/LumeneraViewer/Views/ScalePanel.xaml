@@ -1,6 +1,146 @@
 <UserControl x:Class="LumeneraViewer.Views.ScalePanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Заглушка слота (таск 05). DataContext — ScalePanelViewModel. -->
-    <TextBlock Text="Объективы, калибровка и плашка масштаба появятся здесь." Style="{StaticResource MutedText}"/>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:fx="clr-namespace:LumeneraViewer.UI.Effects">
+    <!-- DataContext — ScalePanelViewModel -->
+    <UserControl.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+        </Style>
+        <Style x:Key="Row" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+    </UserControl.Resources>
+    <StackPanel Margin="0,10,0,0">
+        <!-- Объектив -->
+        <Grid Style="{StaticResource Row}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox ItemsSource="{Binding ObjectiveNames}" SelectedItem="{Binding SelectedObjective}" ToolTip="Текущий объектив"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0,0,0">
+                <ui:Button Icon="{ui:SymbolIcon Add24}" ToolTip="Добавить объектив" Command="{Binding AddObjectiveCommand}" Padding="8" Margin="0,0,4,0"/>
+                <ui:Button Icon="{ui:SymbolIcon Rename24}" ToolTip="Переименовать объектив" Command="{Binding RenameObjectiveCommand}" Padding="8" Margin="0,0,4,0"/>
+                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Удалить объектив (последний удалить нельзя)" Command="{Binding DeleteObjectiveCommand}"
+                           IsEnabled="{Binding CanDelete}" Padding="8"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Калибровка -->
+        <Border CornerRadius="10" Padding="10,8" Margin="0,0,0,10" Background="#10FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Калибровка" Style="{StaticResource MutedText}" FontSize="11.5"/>
+                    <TextBlock Text="{Binding CalibrationText}" FontWeight="SemiBold" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#06B6D4"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCalibrated}" Value="False">
+                                        <Setter Property="Foreground" Value="#F59E0B"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                <ui:Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding CalibrateCommand}" fx:ClickSpark.IsEnabled="True"
+                           Icon="{ui:SymbolIcon Ruler24}" ToolTip="Провести линию по объект-микрометру и ввести её длину">
+                    <ui:Button.Style>
+                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                            <Setter Property="Content" Value="Калибровать"/>
+                            <Setter Property="Appearance" Value="Primary"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCalibrating}" Value="True">
+                                    <Setter Property="Content" Value="Отмена"/>
+                                    <Setter Property="Appearance" Value="Secondary"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ui:Button.Style>
+                </ui:Button>
+            </Grid>
+        </Border>
+
+        <!-- Плашка -->
+        <Grid Style="{StaticResource Row}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Плашка масштаба" Style="{StaticResource Label}" FontWeight="SemiBold"/>
+            <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ScaleBarEnabled}" IsEnabled="{Binding IsCalibrated}"/>
+        </Grid>
+        <TextBlock Text="Без калибровки плашка выключена: пиксели не выдаются за микроны. Откалибруйте объектив."
+                   Style="{StaticResource MutedText}" Margin="0,-4,0,8"
+                   Visibility="{Binding IsCalibrated, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+
+        <StackPanel IsEnabled="{Binding IsCalibrated}">
+            <Grid Style="{StaticResource Row}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox ItemsSource="{Binding Corners}" SelectedIndex="{Binding CornerIndex}" ToolTip="Угол"/>
+                <ComboBox Grid.Column="2" ItemsSource="{Binding ColorNames}" SelectedIndex="{Binding ColorIndex}" ToolTip="Цвет"/>
+            </Grid>
+
+            <Grid Style="{StaticResource Row}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Шрифт" Style="{StaticResource Label}"/>
+                <Slider Grid.Column="1" Minimum="10" Maximum="48" SmallChange="1" LargeChange="4" IsSnapToTickEnabled="True" TickFrequency="1"
+                        Value="{Binding FontSize}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding FontSize}" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
+            </Grid>
+            <Grid Style="{StaticResource Row}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Толщина" Style="{StaticResource Label}"/>
+                <Slider Grid.Column="1" Minimum="2" Maximum="12" SmallChange="1" LargeChange="2" IsSnapToTickEnabled="True" TickFrequency="1"
+                        Value="{Binding Thickness}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding Thickness}" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
+            </Grid>
+
+            <Grid Style="{StaticResource Row}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="92"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Длина" Style="{StaticResource Label}"/>
+                <CheckBox Grid.Column="1" Content="Авто" IsChecked="{Binding AutoLength}" VerticalAlignment="Center" MinWidth="0" Margin="0,0,6,0"/>
+                <ui:TextBox Grid.Column="2" Text="{Binding ManualLengthText, UpdateSourceTrigger=PropertyChanged, Delay=400}"
+                            PlaceholderText="500" IsEnabled="{Binding IsManualLength}" ToolTip="Длина плашки вручную, в выбранных единицах"
+                            AutomationProperties.Name="Длина плашки"/>
+                <ComboBox Grid.Column="3" Margin="6,0,0,0" ItemsSource="{Binding UnitNames}" SelectedIndex="{Binding UnitIndex}" ToolTip="Единицы"/>
+            </Grid>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox Content="Подложка" IsChecked="{Binding Background}" VerticalAlignment="Center"/>
+                <ui:Button Grid.Column="1" Content="Вернуть в угол" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetPositionCommand}"
+                           IsEnabled="{Binding HasCustomPosition}" ToolTip="Плашку можно перетащить мышью; кнопка возвращает её в выбранный угол"/>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
 </UserControl>

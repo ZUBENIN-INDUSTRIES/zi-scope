@@ -1,8 +1,7 @@
 <UserControl x:Class="LumeneraViewer.Views.PreviewOverlay"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="Transparent">
-    <!-- Заглушка слота (таск 05). DataContext — MainViewModel. Размер = кадр в пикселях,
-         e.GetPosition(this) — координаты кадра; масштаб превью — MainViewModel.PreviewZoom. -->
-    <Grid/>
+             Background="Transparent" Focusable="False">
+    <!-- DataContext — MainViewModel. Размер = кадр в пикселях, e.GetPosition(this) — координаты кадра.
+         Всё рисует OverlayRenderer (тот же код, что впечатывает оверлей в файл). Поверхность добавляется в коде. -->
 </UserControl>
