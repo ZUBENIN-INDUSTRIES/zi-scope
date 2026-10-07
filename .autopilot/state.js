@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T19:05:10+05:00",
+  "updatedAt": "2026-10-07T19:09:22+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -43,16 +43,17 @@ window.STATE =
       "status": "done",
       "startedAt": "2026-10-07T18:53:30+05:00",
       "note": "6 тасков, ярус T2, 4 волны",
-      "finishedAt": "2026-10-07T19:05:10+05:00"
+      "finishedAt": "2026-10-07T18:58:38+05:00"
     },
     {
       "id": "build",
       "status": "active",
-      "startedAt": "2026-10-07T19:05:10+05:00"
+      "startedAt": "2026-10-07T18:58:38+05:00"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-10-07T19:08:00+05:00"
     },
     {
       "id": "final",
@@ -93,10 +94,15 @@ window.STATE =
         "csproj",
         "tests/"
       ],
-      "status": "pending",
+      "status": "repair",
       "retries": 0,
-      "repairs": 0,
-      "handoffs": 0
+      "repairs": 1,
+      "handoffs": 0,
+      "startedAt": "2026-10-07T18:58:38+05:00",
+      "repairFindings": [
+        "SettingsStore: исключение в отложенном сохранении роняет процесс; сериализация живого объекта",
+        "LuCamCamera: защита от короткого буфера и закрытия хэндла во время конвертации (решение оркестратора — не воспроизводится без камеры)"
+      ]
     },
     {
       "id": "02",
@@ -276,10 +282,13 @@ window.STATE =
     "fixed": 8,
     "note": "дописаны: окружение разработчика (ист. 49), формулы коррекции, цель АЭ, шрифт плашки, шаг сетки, параметры эффектов, раздел «Дополнительно» (ист. 48); сверх брифа — только R##.n/R##i и A01–A08 → R13"
   },
-  "concerns": [],
+  "concerns": [
+    "Camera/LuCamCamera.cs — сигнатуры LuCam не проверены на живой камере (нет устройства)",
+    "Imaging/ImageProcessor.cs:208 — GainsToTemperatureTint нормирует на (r+b)/2 перед формулой (законная трактовка спеки)"
+  ],
   "reviewers": {
-    "manifestSpec": null,
-    "craft": null
+    "manifestSpec": "accc3d70277f71405",
+    "craft": "aa13cd7782a4444a5"
   },
   "blind": null
 }

@@ -5,6 +5,10 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumeneraViewer", "src\LumeneraViewer\LumeneraViewer.csproj", "{9B1B1E6A-3C2B-4E7E-9A9C-1F8E9F2C7A11}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5E2C4B7A-1D3F-4A8B-9C6E-2F7A1B3C4D5E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumeneraViewer.Tests", "tests\LumeneraViewer.Tests\LumeneraViewer.Tests.csproj", "{29869DB0-5D0D-4042-9020-B8EDA019A4F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,8 +19,15 @@ Global
 		{9B1B1E6A-3C2B-4E7E-9A9C-1F8E9F2C7A11}.Debug|x64.Build.0 = Debug|x64
 		{9B1B1E6A-3C2B-4E7E-9A9C-1F8E9F2C7A11}.Release|x64.ActiveCfg = Release|x64
 		{9B1B1E6A-3C2B-4E7E-9A9C-1F8E9F2C7A11}.Release|x64.Build.0 = Release|x64
+		{29869DB0-5D0D-4042-9020-B8EDA019A4F0}.Debug|x64.ActiveCfg = Debug|x64
+		{29869DB0-5D0D-4042-9020-B8EDA019A4F0}.Debug|x64.Build.0 = Debug|x64
+		{29869DB0-5D0D-4042-9020-B8EDA019A4F0}.Release|x64.ActiveCfg = Release|x64
+		{29869DB0-5D0D-4042-9020-B8EDA019A4F0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{29869DB0-5D0D-4042-9020-B8EDA019A4F0} = {5E2C4B7A-1D3F-4A8B-9C6E-2F7A1B3C4D5E}
 	EndGlobalSection
 EndGlobal

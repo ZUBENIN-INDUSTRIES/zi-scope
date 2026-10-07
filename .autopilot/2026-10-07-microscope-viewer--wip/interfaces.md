@@ -93,3 +93,17 @@ public partial class MainViewModel : ObservableObject {
 ## Что построено
 
 <!-- дописывает оркестратор по блоку INTERFACES из отчёта таска -->
+
+## Из таска 01 — ядро
+
+- Пакеты: WPF-UI 4.3.0, CommunityToolkit.Mvvm 8.4.2; тесты: xunit 2.9.3, xunit.runner.visualstudio 4.0.0, Microsoft.NET.Test.Sdk 18.10.1. В sln только платформа x64 (Debug|x64, Release|x64); тесты в папке решения `tests`.
+- Типы контракта камеры — `Camera/CameraContracts.cs`. `LuCamException : Exception { uint Code }`. `LuCamCamera(CameraSettings) : ICamera`; `Info.Model` реальной камеры = "Lumenera INFINITY", `Serial` из `LucamQueryVersion`.
+- `LuCamCamera.Set` при ошибке возвращает false (без исключения); `Get`/`GetRange` → null. Исключения бросают только `Open`/`Start`.
+- `SimulatedCamera.Set` клампит в диапазон и возвращает true; `Focus` клампится 0..1; `Start()` сам вызывает `Open()`.
+- `Histogram.SampleCount`. `FrameAnalysis.MeanLuma` → 0..1. `ComputeSharpness` — абсолютная дисперсия лапласиана (сравнима только между кадрами одного размера).
+- `ComputeGrayWorldGains` → `(meanG/meanR, 1, meanG/meanB)`. `ImageAdjustments.IsIdentity` — `[JsonIgnore]`. Saturation 0..200 (100 — нейтраль).
+- `SettingsStore` пишет атомарно (.tmp → rename), кириллица без экранирования, null-поля при загрузке заменяются значениями по умолчанию. `InternalsVisibleTo LumeneraViewer.Tests`.
+- Тесты: `dotnet test LumeneraViewer.sln`; один класс — `--filter "FullyQualifiedName~ИмяКласса"`.
+- (ремонт 01) `SettingsStore : IDisposable`; `event Action<Exception>? SaveFailed` — ошибка отложенного сохранения наружу не бросается; `ScheduleSave` сериализует снимок в момент вызова; `Flush()` при ошибке бросает; `Dispose()` = Flush без исключений + остановка таймера.
+- (ремонт 01) `LuCamCamera.Stop()` ждёт поток конвертации **без таймаута**. **Правило для UI: из обработчиков `FrameReceived` / `RawFrameReady` / `ProcessedFrameReady` в UI-поток — только `Dispatcher.BeginInvoke`, никогда `Invoke`**, иначе Stop из UI-потока зависнет.
+- (ремонт 01) `ImageAdjustments.Saturation` клампится в 0..200.

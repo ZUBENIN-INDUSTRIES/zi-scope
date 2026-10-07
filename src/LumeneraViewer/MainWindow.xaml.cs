@@ -9,7 +9,7 @@ namespace LumeneraViewer;
 
 public partial class MainWindow : Window
 {
-    private readonly LuCamCamera _camera = new();
+    private readonly ICamera _camera = CameraFactory.IsDriverAvailable() ? CameraFactory.CreateReal(new LumeneraViewer.Settings.CameraSettings()) : CameraFactory.CreateSimulated();
     private readonly object _frameLock = new();
     private CameraFrame? _latestFrame;
     private bool _hasNewFrame;
@@ -23,7 +23,7 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "LumeneraCaptures");
 
         _camera.FrameReceived += OnCameraFrameReceived;
-        _camera.ErrorOccurred += message => Dispatcher.BeginInvoke(() => StatusText.Text = message);
+        _camera.Error += message => Dispatcher.BeginInvoke(() => StatusText.Text = message);
 
         Loaded += (_, _) => ConnectCamera();
         Closing += (_, _) => _camera.Dispose();
@@ -35,9 +35,9 @@ public partial class MainWindow : Window
         try
         {
             _camera.Close();
-            _camera.Open(1);
-            _camera.StartStreaming();
-            StatusText.Text = $"Подключено: {_camera.Width}x{_camera.Height}, поток запущен.";
+            _camera.Open();
+            _camera.Start();
+            StatusText.Text = $"Подключено: {_camera.Info?.Width}x{_camera.Info?.Height}, поток запущен.";
         }
         catch (DllNotFoundException)
         {
@@ -75,14 +75,12 @@ public partial class MainWindow : Window
 
         if (_bitmap is null || _bitmap.PixelWidth != frame.Width || _bitmap.PixelHeight != frame.Height)
         {
-            // Если цвета на превью выглядят инвертированными (R и B поменяны местами),
-            // замените PixelFormats.Rgb24 на PixelFormats.Bgr24 в обеих точках ниже.
-            _bitmap = new WriteableBitmap(frame.Width, frame.Height, 96, 96, PixelFormats.Rgb24, null);
+            _bitmap = new WriteableBitmap(frame.Width, frame.Height, 96, 96, PixelFormats.Bgr24, null);
             PreviewImage.Source = _bitmap;
         }
 
         var rect = new Int32Rect(0, 0, frame.Width, frame.Height);
-        _bitmap.WritePixels(rect, frame.Rgb24, frame.Width * 3, 0);
+        _bitmap.WritePixels(rect, frame.Bgr24, frame.Width * 3, 0);
     }
 
     private void ShotButton_Click(object sender, RoutedEventArgs e)
@@ -109,7 +107,7 @@ public partial class MainWindow : Window
             var path = Path.Combine(folder, fileName);
 
             var source = BitmapSource.Create(
-                frame.Width, frame.Height, 96, 96, PixelFormats.Rgb24, null, frame.Rgb24, frame.Width * 3);
+                frame.Width, frame.Height, 96, 96, PixelFormats.Bgr24, null, frame.Bgr24, frame.Width * 3);
 
             BitmapEncoder encoder = format switch
             {
