@@ -5,7 +5,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LumeneraViewer.Export;
-using Wpf.Ui.Controls;
+using LumeneraViewer.UI;
 
 namespace LumeneraViewer.ViewModels;
 
@@ -140,12 +140,13 @@ public partial class GalleryViewModel : ObservableObject
     private async Task Delete(GalleryItem? item)
     {
         if (item is null) return;
-        if (!await ConfirmDeleteAsync(item.FileName)) return;
+        var ok = await Dialogs.ConfirmAsync(Host.Owner, "Удалить снимок?",
+            $"Файл «{item.FileName}», его чистая копия (_clean) и метаданные (.json) будут удалены без корзины.",
+            "Удалить");
+        if (!ok) return;
         try
         {
-            File.Delete(item.Path);
-            var json = System.IO.Path.ChangeExtension(item.Path, ".json");
-            if (File.Exists(json)) File.Delete(json);
+            DeleteShot(item.Path);
             Items.Remove(item);
         }
         catch (Exception ex)
@@ -154,18 +155,16 @@ public partial class GalleryViewModel : ObservableObject
         }
     }
 
-    private async Task<bool> ConfirmDeleteAsync(string fileName)
+    /// <summary>Удалить снимок и его спутников: «имя_clean.ext» и «имя.json». Отсутствующие файлы пропускаются.</summary>
+    internal static void DeleteShot(string path)
     {
-        var dialogHost = ContentDialogHost.GetForWindow(Host.Owner);
-        if (dialogHost is null) return false;
-        var dialog = new ContentDialog(dialogHost)
-        {
-            Title = "Удалить снимок?",
-            Content = $"Файл «{fileName}» и его метаданные (.json) будут удалены без корзины.",
-            PrimaryButtonText = "Удалить",
-            CloseButtonText = "Отмена",
-            DialogMaxWidth = 420,
-        };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        var dir = System.IO.Path.GetDirectoryName(path)!;
+        var stem = System.IO.Path.GetFileNameWithoutExtension(path);
+        var ext = System.IO.Path.GetExtension(path);
+        foreach (var f in new[] { path, System.IO.Path.Combine(dir, stem + "_clean" + ext), System.IO.Path.Combine(dir, stem + ".json") })
+            if (File.Exists(f)) File.Delete(f);
     }
+
+    /// <summary>Закрытие окна: остановить поток декодирования миниатюр.</summary>
+    public void Close() => _decoder.Dispose();
 }

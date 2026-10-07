@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-07T18:45:30+05:00",
-  "updatedAt": "2026-10-07T22:55:53+05:00",
+  "updatedAt": "2026-10-07T23:01:13+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -49,13 +49,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-07T18:58:38+05:00",
-      "note": "6 из 7 тасков готовы"
+      "note": "7 из 8 тасков готовы (08 — по разбору замечаний)"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-07T19:08:00+05:00",
-      "note": "проверено 6 из 7"
+      "note": "проверено 7 из 8"
     },
     {
       "id": "final",
@@ -328,9 +328,49 @@ window.STATE =
         "MainWindow.xaml (шапка)",
         "UI/Controls/"
       ],
-      "status": "in-progress",
+      "status": "done",
       "startedAt": "2026-10-07T19:55:02+05:00",
       "retries": 1,
+      "repairs": 0,
+      "handoffs": 0,
+      "finishedAt": "2026-10-07T23:01:13+05:00",
+      "commit": "303890f",
+      "tests": {
+        "passed": 108,
+        "failed": 0
+      }
+    },
+    {
+      "id": "08",
+      "title": "Надёжность: закрытие, память, диалоги, драйверы",
+      "requirements": [
+        "R03",
+        "R17i",
+        "R02",
+        "R05",
+        "A06",
+        "A07",
+        "R07.1",
+        "R15i.1",
+        "A03",
+        "A08",
+        "R03.2"
+      ],
+      "blockedBy": [
+        "07"
+      ],
+      "wave": 5,
+      "zone": [
+        "ViewModels/",
+        "Drivers/",
+        "Export/",
+        "UI/Dialogs.cs",
+        "PreviewOverlay",
+        "MainWindow.xaml (статус)"
+      ],
+      "status": "in-progress",
+      "startedAt": "2026-10-07T23:01:13+05:00",
+      "retries": 0,
       "repairs": 0,
       "handoffs": 0
     }
@@ -401,7 +441,8 @@ window.STATE =
     "ViewModels/CapturePanelViewModel.cs:255 — старый цикл тайм-лапса может затереть счётчик новой серии",
     "ViewModels/CapturePanelViewModel.cs:24 — FrameExporter/StaWorker не освобождаются",
     "ViewModels/CapturePanelViewModel.cs:313 — при закрытии окно молча ждёт запись до 10 с",
-    "Export/FrameExporter.Save.cs:169 — уникальность имени не учитывает _clean (безопасно лишь при одном потоке записи)"
+    "Export/FrameExporter.Save.cs:169 — уникальность имени не учитывает _clean (безопасно лишь при одном потоке записи)",
+    "ТРИАЖ Phase 8: в таск 08 — LOH-буферы, закрытие/камера, Rendering, Повторить из демо, дебаунс сохранения, перечитывание после сброса, общий помощник диалогов (повтор в 4 тасках), автоэкспозиция, драйверы (таймаут/камера/гонка), тайм-лапс, _clean, освобождение экспортёра, ожидание при закрытии, захват линейки, прочерки статуса. В ОТЧЁТ: ResetSettings рефлексией, ZoomPanHost/SpotlightCard/Histogram мелкая оптимизация, PATH при проверке DLL, угол после перетаскивания плашки, размер плашки в файле (по спеке), уникальность имени _clean, U+200A в подписях. СНЯТО: GainsToTemperatureTint (законная трактовка), Stop без таймаута (закрывается пунктом про Shutdown)"
   ],
   "reviewers": {
     "manifestSpec": "accc3d70277f71405",

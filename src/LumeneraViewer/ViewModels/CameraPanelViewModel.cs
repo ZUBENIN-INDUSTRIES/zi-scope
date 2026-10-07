@@ -26,6 +26,7 @@ public partial class CameraPanelViewModel : ObservableObject
         _ui = host.Owner.Dispatcher;
         host.CameraChanged += () =>
         {
+            CancelAutoWait();   // ожидание кадра автоэкспозиции относится к старой камере
             if (_ui.CheckAccess()) Reload();
             else _ui.BeginInvoke(Reload);
         };
@@ -200,24 +201,51 @@ public partial class CameraPanelViewModel : ObservableObject
         }
     }
 
-    /// <summary>Пропустить <paramref name="skip"/> кадров и вернуть среднюю яркость центра следующего (null — кадров нет).</summary>
+    private CancellationTokenSource? _autoWait;
+
+    private void CancelAutoWait()
+    {
+        try { Volatile.Read(ref _autoWait)?.Cancel(); }
+        catch (ObjectDisposedException) { /* ожидание уже завершилось */ }
+    }
+
+    /// <summary>
+    /// Пропустить <paramref name="skip"/> кадров и вернуть среднюю яркость центра следующего (null — кадров нет,
+    /// таймаут или смена камеры). Яркость считается в пуле потоков, не в потоке камеры; таймер ожидания
+    /// освобождается, как только пришёл кадр.
+    /// </summary>
     private Task<double?> WaitMeanAsync(int skip)
     {
         var tcs = new TaskCompletionSource<double?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var timeout = (int)Math.Min(ExposureMs * (skip + 2) + 3000, 60000);
+        var cts = new CancellationTokenSource(timeout);
+        CancelAutoWait();
+        _autoWait = cts;
         int seen = 0;
         Action<CameraFrame>? handler = null;
         handler = f =>
         {
             if (Interlocked.Increment(ref seen) <= skip) return;
             Host.RawFrameReady -= handler;
-            tcs.TrySetResult(FrameAnalysis.MeanLuma(f.Bgr24, f.Width, f.Height));
+            if (cts.IsCancellationRequested) return;
+            _ = Task.Run(() =>
+            {
+                try { tcs.TrySetResult(FrameAnalysis.MeanLuma(f.Bgr24, f.Width, f.Height)); }
+                catch { tcs.TrySetResult(null); }
+            });
         };
-        Host.RawFrameReady += handler;
-        var timeout = (int)Math.Min(ExposureMs * (skip + 2) + 3000, 60000);
-        _ = Task.Delay(timeout).ContinueWith(_ =>
+        var reg = cts.Token.Register(() =>
         {
             Host.RawFrameReady -= handler;
             tcs.TrySetResult(null);
+        });
+        Host.RawFrameReady += handler;
+        tcs.Task.ContinueWith(_ =>
+        {
+            reg.Dispose();
+            Host.RawFrameReady -= handler;
+            Interlocked.CompareExchange(ref _autoWait, null, cts);
+            cts.Dispose();   // таймер ожидания не висит
         }, TaskScheduler.Default);
         return tcs.Task;
     }
@@ -233,11 +261,13 @@ public partial class CameraPanelViewModel : ObservableObject
     private void OnProcessedFrame(CameraFrame f)
     {
         if (!TryEnter(ref _histBusy, ref _histLast)) return;
+        var lease = Host.RetainFrame(f);   // буфер кадра не переиспользуется, пока считаем
         Task.Run(() =>
         {
             try
             {
-                var h = FrameAnalysis.ComputeHistogram(f.Bgr24, f.Width, f.Height, 4);
+                Histogram h;
+                using (lease) h = FrameAnalysis.ComputeHistogram(f.Bgr24, f.Width, f.Height, 4);
                 _ui.BeginInvoke(() =>
                 {
                     if (Host.Camera is null) return;

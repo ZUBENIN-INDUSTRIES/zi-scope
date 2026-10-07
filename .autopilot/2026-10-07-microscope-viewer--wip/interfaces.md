@@ -153,3 +153,11 @@ public partial class MainViewModel : ObservableObject {
 ## Из таска 07 — панель статуса
 
 - `UI.Controls.StatusSegment : ContentControl { string Caption; string CaptionText (read-only, заглавными); SymbolRegular Icon; object? Indicator (вместо иконки) }`, шаблон — неявный стиль в `Effects.xaml`. Стили: `StatusPanel` (стекло, радиус 10, высота 50), `StatusDivider`, `StatusValue`, `StatusTag` (радиус 4). Стиль `ChipBorder` удалён.
+
+## Из таска 08 — надёжность
+
+- `static UI.Dialogs { GetHostAsync(Window); ShowAsync(Window, ContentDialog, maxWidth=480); ConfirmAsync(owner,title,text,primary,close="Отмена",defaultIsClose=true); AskTextAsync(owner,title,label,initial,primary="ОК",placeholder?); InfoAsync(owner,title,text,secondary?,close); CloseOpen(Window); Text(main,secondary?) }` — единственный способ показывать диалоги; ждёт хост до 2 с; нет хоста → None/false/null.
+- **Владение буферами кадров:** `LatestProcessedFrame` выводит кадр из пула (держать можно сколько угодно); кадр из `ProcessedFrameReady` валиден **только внутри обработчика**, дольше — `IDisposable host.RetainFrame(frame)`; raw-кадры не пулятся. `internal FrameBufferPool { Rent/AddRef/Release/Escape/Lease }`.
+- `MainViewModel`: `event Action? SettingsReplaced` (UI-поток, после ResetSettings); `Task<bool> DisconnectForInstallAsync()`; `SaveSettingsSoon` — не чаще раза в секунду, из любого потока; Shutdown закрывает камеру в фоне с ожиданием до 3 с.
+- `DriverInstallResult.TimedOutStillRunning`, `InstallerStillRunningException : TimeoutException`; по таймауту Kill(entireProcessTree).
+- `StatusSegment.IsEmpty` → прочерк «—». `GalleryViewModel.Close()`, `internal static DeleteShot(path)` (удаляет снимок, `_clean` и `.json`).

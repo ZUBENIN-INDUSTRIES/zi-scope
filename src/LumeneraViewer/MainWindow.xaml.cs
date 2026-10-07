@@ -41,6 +41,7 @@ public partial class MainWindow : FluentWindow
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (e.Cancel) return;   // закрытие отложено (например, дописываются снимки) — окно закроется позже
         var w = _vm.Settings.Window;
         var bounds = WindowState == WindowState.Normal && !_fullScreen ? new Rect(Left, Top, Width, Height) : RestoreBounds;
         if (!bounds.IsEmpty) { w.Width = bounds.Width; w.Height = bounds.Height; }

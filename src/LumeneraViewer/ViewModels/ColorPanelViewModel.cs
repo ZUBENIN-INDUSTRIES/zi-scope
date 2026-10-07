@@ -7,6 +7,8 @@ using LumeneraViewer.Imaging;
 using LumeneraViewer.Settings;
 using Wpf.Ui.Controls;
 
+using LumeneraViewer.UI;
+
 namespace LumeneraViewer.ViewModels;
 
 /// <summary>Карточка «Цвет»: программная коррекция, авто-ББ, Ч/Б, негатив, пресеты.</summary>
@@ -24,6 +26,17 @@ public partial class ColorPanelViewModel : ObservableObject
         LoadFrom(host.Adjustments);
         // Коррекцию могут поменять снаружи (сброс настроек) — подтягиваем
         host.PropertyChanged += OnHostPropertyChanged;
+        host.SettingsReplaced += ReloadPresets;
+    }
+
+    /// <summary>Настройки заменены (сброс): пресеты перечитываются, удалённые не вернутся при сохранении.</summary>
+    private void ReloadPresets()
+    {
+        _selectingSilently = true;
+        SelectedPreset = null;
+        _selectingSilently = false;
+        Presets.Clear();
+        foreach (var p in Host.Settings.Presets ??= new()) Presets.Add(p);
     }
 
     // Диапазоны и значения по умолчанию — спецификация, истории 17–19
@@ -144,36 +157,11 @@ public partial class ColorPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task SavePreset()
     {
-        var box = new Wpf.Ui.Controls.TextBox
-        {
-            PlaceholderText = "Например: «Окраска по Граму, ×40»",
-            Text = SelectedPreset?.Name ?? $"Пресет {Presets.Count + 1}",
-            MinWidth = 320,
-        };
-        var dialog = new ContentDialog(ContentDialogHost.GetForWindow(Host.Owner))
-        {
-            Title = "Сохранить пресет",
-            Content = new StackPanel
-            {
-                Children =
-                {
-                    new System.Windows.Controls.TextBlock
-                    {
-                        Text = "Сохранятся коррекция цвета, экспозиция и усиление.",
-                        Opacity = 0.7, Margin = new System.Windows.Thickness(0, 0, 0, 10), TextWrapping = System.Windows.TextWrapping.Wrap,
-                    },
-                    box,
-                },
-            },
-            PrimaryButtonText = "Сохранить",
-            CloseButtonText = "Отмена",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-        dialog.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-        var name = box.Text.Trim();
-        if (name.Length == 0) return;
+        var name = await Dialogs.AskTextAsync(Host.Owner, "Сохранить пресет",
+            "Сохранятся коррекция цвета, экспозиция и усиление.",
+            SelectedPreset?.Name ?? $"Пресет {Presets.Count + 1}", "Сохранить",
+            "Например: «Окраска по Граму, ×40»");
+        if (name is null) return;
         var preset = new AdjustmentPreset(name, Build(), Host.CameraPanel.CurrentExposure, Host.CameraPanel.CurrentGain);
         var existing = Presets.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.CurrentCultureIgnoreCase));
         if (existing is not null) Presets[Presets.IndexOf(existing)] = preset; // перезапись по имени
@@ -189,15 +177,8 @@ public partial class ColorPanelViewModel : ObservableObject
     private async Task DeletePreset()
     {
         if (SelectedPreset is not { } p) return;
-        var dialog = new ContentDialog(ContentDialogHost.GetForWindow(Host.Owner))
-        {
-            Title = "Удалить пресет?",
-            Content = $"Пресет «{p.Name}» будет удалён без возможности восстановления.",
-            PrimaryButtonText = "Удалить",
-            CloseButtonText = "Отмена",
-            DefaultButton = ContentDialogButton.Close,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (!await Dialogs.ConfirmAsync(Host.Owner, "Удалить пресет?",
+                $"Пресет «{p.Name}» будет удалён без возможности восстановления.", "Удалить")) return;
         Presets.Remove(p);
         SelectedPreset = null;
         Persist();

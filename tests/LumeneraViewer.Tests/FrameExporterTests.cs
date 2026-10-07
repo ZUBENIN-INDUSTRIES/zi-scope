@@ -14,8 +14,19 @@ public sealed class FrameExporterTests : IDisposable
     private static readonly DateTime T = new(2026, 10, 7, 14, 5, 9, 42);
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "lv-export-" + Guid.NewGuid().ToString("N"));
 
+    private readonly List<FrameExporter> _exporters = new();
+
+    /// <summary>Экспортёр, который освободится вместе с тестом.</summary>
+    private FrameExporter Exp()
+    {
+        var e = new FrameExporter();
+        _exporters.Add(e);
+        return e;
+    }
+
     public void Dispose()
     {
+        foreach (var e in _exporters) e.Dispose();
         try { Directory.Delete(_dir, true); } catch { }
     }
 
@@ -74,7 +85,7 @@ public sealed class FrameExporterTests : IDisposable
     [InlineData(ImageFormatKind.JpegXr)]
     public async Task SaveAsync_EachFormat_WritesDecodableFileOfFullSize(ImageFormatKind f)
     {
-        var path = await new FrameExporter().SaveAsync(Frame(), null, Meta(), Options(f));
+        var path = await Exp().SaveAsync(Frame(), null, Meta(), Options(f));
 
         Assert.True(File.Exists(path));
         Assert.Equal(FrameExporter.Extension(f), Path.GetExtension(path));
@@ -88,16 +99,16 @@ public sealed class FrameExporterTests : IDisposable
     public async Task SaveAsync_TiffLzw_IsSmallerThanUncompressed()
     {
         var flat = new CameraFrame { Bgr24 = new byte[200 * 100 * 3], Width = 200, Height = 100 };
-        var plain = await new FrameExporter().SaveAsync(flat, null, Meta(), Options(ImageFormatKind.Tiff));
+        var plain = await Exp().SaveAsync(flat, null, Meta(), Options(ImageFormatKind.Tiff));
         var o = Options(ImageFormatKind.Tiff); o.TiffLzw = true; o.Prefix = "lzw";
-        var lzw = await new FrameExporter().SaveAsync(flat, null, Meta(), o);
+        var lzw = await Exp().SaveAsync(flat, null, Meta(), o);
         Assert.True(new FileInfo(lzw).Length < new FileInfo(plain).Length / 4);
     }
 
     [Fact]
     public async Task SaveAsync_WritesMetadataJson()
     {
-        var path = await new FrameExporter().SaveAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), seriesIndex: 3);
+        var path = await Exp().SaveAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), seriesIndex: 3);
 
         Assert.EndsWith("_0003.png", path);
         var json = Path.ChangeExtension(path, ".json");
@@ -120,7 +131,7 @@ public sealed class FrameExporterTests : IDisposable
     public async Task SaveAsync_NoMetadataWhenDisabled()
     {
         var o = Options(ImageFormatKind.Png); o.WriteMetadata = false;
-        var path = await new FrameExporter().SaveAsync(Frame(), null, Meta(), o);
+        var path = await Exp().SaveAsync(Frame(), null, Meta(), o);
         Assert.False(File.Exists(Path.ChangeExtension(path, ".json")));
     }
 
@@ -131,7 +142,7 @@ public sealed class FrameExporterTests : IDisposable
         var overlays = new OverlayState { MicronsPerPixel = 1, ScaleBarEnabled = true, Color = OverlayColor.White, Background = false };
         var o = Options(ImageFormatKind.Png); o.AlsoSaveClean = true;
 
-        var path = await new FrameExporter().SaveAsync(black, overlays, Meta(), o);
+        var path = await Exp().SaveAsync(black, overlays, Meta(), o);
 
         var clean = Path.Combine(_dir, Path.GetFileNameWithoutExtension(path) + "_clean.png");
         Assert.True(File.Exists(clean));
@@ -142,7 +153,7 @@ public sealed class FrameExporterTests : IDisposable
     [Fact]
     public async Task SaveAsync_SameTimestampTwice_DoesNotOverwrite()
     {
-        var ex = new FrameExporter();
+        var ex = Exp();
         var a = ex.SaveAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png));
         var b = ex.SaveAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png));
         var paths = await Task.WhenAll(a, b);
@@ -157,7 +168,7 @@ public sealed class FrameExporterTests : IDisposable
         Directory.CreateDirectory(_dir);
         File.WriteAllText(file, "x");
         var o = Options(ImageFormatKind.Png); o.Folder = file;
-        await Assert.ThrowsAnyAsync<IOException>(() => new FrameExporter().SaveAsync(Frame(), null, Meta(), o));
+        await Assert.ThrowsAnyAsync<IOException>(() => Exp().SaveAsync(Frame(), null, Meta(), o));
     }
 
     private static int MaxByte(BitmapSource img)

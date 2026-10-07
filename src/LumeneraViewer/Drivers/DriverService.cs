@@ -5,7 +5,14 @@ using LumeneraViewer.Camera;
 
 namespace LumeneraViewer.Drivers;
 
-public enum DriverInstallResult { Success, SuccessRebootRequired, Cancelled, InstallerNotFound, Failed, TimedOut }
+public enum DriverInstallResult { Success, SuccessRebootRequired, Cancelled, InstallerNotFound, Failed, TimedOut, TimedOutStillRunning }
+
+/// <summary>Установщик не уложился в таймаут, и завершить его не удалось (например, нет доступа к повышенному процессу).</summary>
+public sealed class InstallerStillRunningException : TimeoutException
+{
+    public InstallerStillRunningException(Exception? inner = null)
+        : base("Установщик не ответил вовремя и всё ещё работает", inner) { }
+}
 
 /// <summary>
 /// Наличие драйверов камеры и их установка из комплекта программы (папка Drivers рядом с exe).
@@ -71,6 +78,7 @@ public sealed class DriverService
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled) { return DriverInstallResult.Cancelled; }
         catch (OperationCanceledException) { return DriverInstallResult.Cancelled; }
+        catch (InstallerStillRunningException) { return DriverInstallResult.TimedOutStillRunning; }
         catch (TimeoutException) { return DriverInstallResult.TimedOut; }
         catch (Exception ex)
         {
@@ -84,7 +92,10 @@ public sealed class DriverService
         return code == ExitRebootRequired ? DriverInstallResult.SuccessRebootRequired : DriverInstallResult.Success;
     }
 
-    /// <summary>Запуск процесса и ожидание кода возврата; по таймауту — TimeoutException.</summary>
+    /// <summary>
+    /// Запуск процесса и ожидание кода возврата. По таймауту процесс завершается (Kill) → TimeoutException;
+    /// если завершить нельзя (отказ доступа к повышенному процессу) → InstallerStillRunningException.
+    /// </summary>
     private static async Task<int> RunProcessAsync(ProcessStartInfo psi, TimeSpan timeout, CancellationToken ct)
     {
         using var p = Process.Start(psi) ?? throw new InvalidOperationException("Установщик не запустился");
@@ -96,8 +107,23 @@ public sealed class DriverService
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            try
+            {
+                p.Kill(entireProcessTree: true);
+                if (!p.WaitForExit(5000)) throw new InstallerStillRunningException();
+            }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException or AggregateException)
+            {
+                if (!HasExited(p)) throw new InstallerStillRunningException(ex);
+            }
             throw new TimeoutException();
         }
         return p.ExitCode;
+    }
+
+    private static bool HasExited(Process p)
+    {
+        try { return p.HasExited; }
+        catch (Exception) { return false; }   // нет доступа — считаем, что жив
     }
 }

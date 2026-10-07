@@ -82,54 +82,22 @@
                             </StackPanel>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="Камера" Icon="Camera24" MinWidth="236" MaxWidth="320">
-                            <TextBlock ToolTip="{Binding CameraTitle}">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource StatusValue}">
-                                        <Setter Property="Text" Value="{Binding CameraTitle}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Camera}" Value="{x:Null}">
-                                                <Setter Property="Text" Value="—"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                        <c:StatusSegment Caption="Камера" Icon="Camera24" MinWidth="236" MaxWidth="320"
+                                         IsEmpty="{Binding IsPlaceholderVisible}">
+                            <TextBlock Text="{Binding CameraTitle}" ToolTip="{Binding CameraTitle}" Style="{StaticResource StatusValue}"/>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="Разрешение" Icon="Resize24" MinWidth="132">
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource StatusValue}">
-                                        <Setter Property="Text" Value="{Binding ResolutionText}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsPlaceholderVisible}" Value="True">
-                                                <Setter Property="Text" Value="—"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                        <c:StatusSegment Caption="Разрешение" Icon="Resize24" MinWidth="132"
+                                         IsEmpty="{Binding IsPlaceholderVisible}">
+                            <TextBlock Text="{Binding ResolutionText}" Style="{StaticResource StatusValue}"/>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="FPS" Icon="TopSpeed24" MinWidth="104">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsPlaceholderVisible}" Value="True">
-                                                    <Setter Property="Visibility" Value="Hidden"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </StackPanel.Style>
-                                    <fx:CountUpText Value="{Binding Fps}" Format="0.0" FontSize="13.5" FontWeight="SemiBold" Foreground="#06B6D4"/>
-                                    <TextBlock Text=" к/с" FontSize="12" Foreground="#8CFFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
-                                </StackPanel>
-                                <TextBlock Text="—" Style="{StaticResource StatusValue}"
-                                           Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}}"/>
-                            </Grid>
+                        <c:StatusSegment Caption="FPS" Icon="TopSpeed24" MinWidth="104"
+                                         IsEmpty="{Binding IsPlaceholderVisible}">
+                            <StackPanel Orientation="Horizontal">
+                                <fx:CountUpText Value="{Binding Fps}" Format="0.0" FontSize="13.5" FontWeight="SemiBold" Foreground="#06B6D4"/>
+                                <TextBlock Text=" к/с" FontSize="12" Foreground="#8CFFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                            </StackPanel>
                         </c:StatusSegment>
                     </StackPanel>
                 </Border>

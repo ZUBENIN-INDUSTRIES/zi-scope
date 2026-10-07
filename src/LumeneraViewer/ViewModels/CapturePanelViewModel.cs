@@ -33,6 +33,11 @@ public partial class CapturePanelViewModel : ObservableObject
     public CapturePanelViewModel(MainViewModel host)
     {
         Host = host;
+        host.SettingsReplaced += () =>
+        {
+            OnPropertyChanged(string.Empty);   // папка, формат, интервал — из новых настроек
+            Host.Gallery.Reload();
+        };
         _countdown = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) => UpdateCountdown(), host.Owner.Dispatcher);
         _countdown.Stop();
         host.Owner.Closing += OnOwnerClosing;
@@ -256,29 +261,36 @@ public partial class CapturePanelViewModel : ObservableObject
     {
         var cts = new CancellationTokenSource();
         _series = cts;
-        _seriesTotal = TL.Count;
+        var total = TL.Count;
+        _seriesTotal = total;
         ShotsTaken = 0;
         IsRunning = true;
         var interval = TimeSpan.FromSeconds(Math.Max(MinInterval, TL.IntervalSeconds));
         var start = DateTime.Now;
         _countdown.Start();
+        // После каждого await: если серия уже не моя (остановлена или запущена новая) — общее состояние не трогаю.
+        bool Mine() => ReferenceEquals(_series, cts) && !cts.IsCancellationRequested;
         try
         {
-            for (var i = 1; _seriesTotal == 0 || i <= _seriesTotal; i++)
+            for (var i = 1; total == 0 || i <= total; i++)
             {
                 // Расписание от старта серии: задержки записи не накапливаются.
-                _nextShotAt = start + interval * (i - 1);
-                var wait = _nextShotAt - DateTime.Now;
+                var at = start + interval * (i - 1);
+                _nextShotAt = at;
+                var wait = at - DateTime.Now;
                 if (wait > TimeSpan.Zero) await Task.Delay(wait, cts.Token);
-                if (cts.IsCancellationRequested) return;
+                if (!Mine()) return;
 
-                if (await CaptureCoreAsync(i, notifySuccess: false) is null)
+                var saved = await CaptureCoreAsync(i, notifySuccess: false);
+                if (!Mine()) return;
+                if (saved is null)
                 {
                     StopTimelapse("Серия остановлена: снимок не сохранён.");
                     return;
                 }
                 ShotsTaken = i;
             }
+            if (!Mine()) return;
             StopTimelapse(null);
             Host.Notify("Тайм-лапс завершён", $"Сохранено кадров: {ShotsTaken}", NotifyKind.Success);
         }
@@ -309,11 +321,33 @@ public partial class CapturePanelViewModel : ObservableObject
             : $"следующий через {Math.Max(0, left.TotalSeconds):0.0} с";
     }
 
-    /// <summary>Закрытие окна: остановить серию и дождаться записи начатых снимков.</summary>
+    private bool _closeAfterSaves;
+
+    /// <summary>
+    /// Закрытие окна: остановить серию. Если снимки ещё пишутся — закрытие откладывается, пользователь видит
+    /// «Дописываю снимки…», окно закроется само, когда запись закончится (не дольше 10 с).
+    /// После записи экспортёр освобождается.
+    /// </summary>
     private void OnOwnerClosing(object? sender, CancelEventArgs e)
     {
         if (e.Cancel) return;
         StopTimelapse(null);
-        _exporter.WaitIdle(TimeSpan.FromSeconds(10));
+        if (_exporter.Pending > 0 && !_closeAfterSaves)
+        {
+            _closeAfterSaves = true;
+            e.Cancel = true;
+            Host.Owner.Title = "Дописываю снимки…";
+            Host.Notify("Дописываю снимки…", $"Осталось: {_exporter.Pending}. Окно закроется само.", NotifyKind.Info);
+            _ = CloseWhenSavedAsync();
+            return;
+        }
+        _exporter.WaitIdle(TimeSpan.FromSeconds(_closeAfterSaves ? 2 : 10));
+        _exporter.Dispose();
+    }
+
+    private async Task CloseWhenSavedAsync()
+    {
+        await Task.Run(() => _exporter.WaitIdle(TimeSpan.FromSeconds(10)));
+        Host.Owner.Close();
     }
 }

@@ -8,6 +8,7 @@ using LumeneraViewer.Camera;
 using LumeneraViewer.Drivers;
 using LumeneraViewer.Imaging;
 using LumeneraViewer.Settings;
+using LumeneraViewer.UI;
 using LumeneraViewer.Views;
 using Wpf.Ui.Controls;
 
@@ -25,6 +26,8 @@ public partial class MainViewModel : ObservableObject
 {
     private const int LossTimeoutMs = 3000;
     private const int PollEveryTicks = 6;   // тик 500 мс → опрос раз в 3 с
+    private const int RenderIdleFrames = 30; // без новых кадров ~0.5 с — отписка от CompositionTarget.Rendering
+    private static readonly TimeSpan CloseCameraTimeout = TimeSpan.FromSeconds(3);
 
     private readonly SettingsStore _store;
     private readonly Dispatcher _ui;
@@ -33,11 +36,17 @@ public partial class MainViewModel : ObservableObject
     private readonly Thread _worker;
     private readonly AutoResetEvent _signal = new(false);
     private readonly object _frameLock = new();
+    private readonly FrameBufferPool _pool = new();
+    private readonly DispatcherTimer _saveTimer;
+    private readonly SaveThrottle _saveThrottle;
     private SnackbarPresenter? _snackbar;
 
     private ICamera? _camera;
-    private Action<CameraFrame>? _frameHandler;
-    private Action<string>? _errorHandler;
+    private IDisposable? _cameraSubscription;
+    private volatile bool _shuttingDown;
+    private bool _installing;          // идёт установка драйверов — автопереподключение выключено
+    private int _renderHooked;         // 1 — подписаны на CompositionTarget.Rendering
+    private int _renderIdle;
 
     // Конвейер: «последний побеждает».
     private CameraFrame? _pendingRaw;
@@ -62,6 +71,13 @@ public partial class MainViewModel : ObservableObject
         _store = store;
         _ui = owner.Dispatcher;
         Settings = store.Load();
+        _saveThrottle = new SaveThrottle(() => _store.ScheduleSave(Settings));
+        _saveTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) =>
+        {
+            _saveTimer!.Stop();
+            _saveThrottle.OnTimer();
+        }, _ui);
+        _saveTimer.Stop();
         _adjustments = Settings.Adjustments ?? ImageAdjustments.Default;
         _isPanelCollapsed = Settings.Window.PanelCollapsed;
         store.SaveFailed += ex => Notify("Не удалось сохранить настройки", ex.Message, NotifyKind.Error);
@@ -77,7 +93,6 @@ public partial class MainViewModel : ObservableObject
         _worker.Start();
         _tick = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => OnTick(), _ui);
         _tick.Stop();
-        CompositionTarget.Rendering += OnRendering;
     }
 
     // ───── Контракт хоста ─────
@@ -85,7 +100,23 @@ public partial class MainViewModel : ObservableObject
     public Window Owner { get; }
     public AppSettings Settings { get; }
     public string SettingsPath => _store.Path;
-    public void SaveSettingsSoon() => _store.ScheduleSave(Settings);
+
+    /// <summary>
+    /// Сохранить настройки «скоро»: сериализация не чаще раза в ~1 с (троттлинг в UI-потоке),
+    /// последнее изменение не теряется — при закрытии окна дописывается. Можно звать из любого потока.
+    /// </summary>
+    public void SaveSettingsSoon()
+    {
+        if (!_ui.CheckAccess()) { _ui.BeginInvoke(SaveSettingsSoon); return; }
+        if (_shuttingDown) return;
+        if (_saveThrottle.Request()) _saveTimer.Start();
+    }
+
+    /// <summary>
+    /// UI-поток: объект Settings тот же, но его содержимое заменено целиком (сброс настроек).
+    /// Панели, кэширующие данные из настроек (пресеты, объективы, экспорт), должны перечитать их.
+    /// </summary>
+    public event Action? SettingsReplaced;
 
     public ICamera? Camera => _camera;
     /// <summary>В UI-потоке, после открытия/закрытия камеры.</summary>
@@ -151,13 +182,34 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    public CameraFrame? LatestProcessedFrame { get { lock (_frameLock) return _latestProcessed; } }
+    /// <summary>
+    /// То, что на экране. Возвращённый кадр выводится из пула и больше никогда не перезаписывается —
+    /// его можно держать сколько угодно (например, отдать в экспорт).
+    /// </summary>
+    public CameraFrame? LatestProcessedFrame
+    {
+        get
+        {
+            lock (_frameLock)
+            {
+                _pool.Escape(_latestProcessed);
+                return _latestProcessed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Кадр из ProcessedFrameReady действителен только во время обработчика (буферы конвейера переиспользуются).
+    /// Чтобы обработать его позже (Task.Run и т. п.), вызовите RetainFrame внутри обработчика и
+    /// освободите результат (Dispose), когда кадр больше не нужен.
+    /// </summary>
+    public IDisposable RetainFrame(CameraFrame frame) => _pool.Lease(frame);
     /// <summary>Сырой кадр, из которого получен LatestProcessedFrame (при паузе — замороженный).</summary>
     public CameraFrame? LatestRawFrame { get { lock (_frameLock) return _latestRaw; } }
 
     /// <summary>Фоновый поток, каждый принятый кадр. В UI — только Dispatcher.BeginInvoke.</summary>
     public event Action<CameraFrame>? RawFrameReady;
-    /// <summary>Фоновый поток, после обработки. В UI — только Dispatcher.BeginInvoke.</summary>
+    /// <summary>Фоновый поток, после обработки. В UI — только Dispatcher.BeginInvoke. Держать дольше обработчика — только через RetainFrame.</summary>
     public event Action<CameraFrame>? ProcessedFrameReady;
 
     [ObservableProperty] private PreviewTool _activeTool;
@@ -275,8 +327,16 @@ public partial class MainViewModel : ObservableObject
         await _switchLock.WaitAsync();
         try
         {
+            if (_shuttingDown) return;
+            _installing = false;
             if (!CameraFactory.IsDriverAvailable())
             {
+                if (State == ConnectionState.Demo)
+                {
+                    // Работающий демо-режим не гасим: реальной камеры всё равно нет.
+                    if (userInitiated) Notify("Драйверы не найдены", "Демо-режим продолжает работать.", NotifyKind.Warning);
+                    return;
+                }
                 await CloseCameraAsync();
                 State = ConnectionState.NoDrivers;
                 if (userInitiated) Notify("Драйверы не найдены", "Без драйверов можно работать в демо-режиме.", NotifyKind.Warning);
@@ -286,7 +346,8 @@ public partial class MainViewModel : ObservableObject
             var count = await Task.Run(CameraFactory.CountRealCameras);
             if (count <= 0)
             {
-                if (State is not (ConnectionState.Streaming or ConnectionState.Demo) || userInitiated)
+                // Демо-режим при отсутствии реальной камеры не гасим; потоковую камеру — только по команде.
+                if (State != ConnectionState.Demo && (State != ConnectionState.Streaming || userInitiated))
                 {
                     await CloseCameraAsync();
                     State = ConnectionState.NoCamera;
@@ -298,20 +359,21 @@ public partial class MainViewModel : ObservableObject
             await CloseCameraAsync();
             State = ConnectionState.Connecting;
             var cam = CameraFactory.CreateReal(Settings.Camera);
-            Subscribe(cam);
+            var sub = Subscribe(cam);
             try
             {
                 await Task.Run(() => { cam.Open(); cam.Start(); });
             }
             catch (Exception ex)
             {
-                Unsubscribe(cam);
+                sub.Dispose();
                 await Task.Run(cam.Dispose);
+                if (_shuttingDown) return;
                 State = ConnectionState.NoCamera;
                 Notify("Не удалось подключить камеру", ex.Message, NotifyKind.Error);
                 return;
             }
-            SetCamera(cam, ConnectionState.Streaming);
+            if (!TrySetCamera(cam, sub, ConnectionState.Streaming)) return;
             Notify("Камера подключена", CameraTitle, NotifyKind.Success);
         }
         finally
@@ -328,15 +390,24 @@ public partial class MainViewModel : ObservableObject
         await _switchLock.WaitAsync();
         try
         {
+            if (_shuttingDown) return;
+            _installing = false;
             await CloseCameraAsync();
             State = ConnectionState.Connecting;
             var cam = CameraFactory.CreateSimulated();
-            Subscribe(cam);
-            await Task.Run(cam.Start);
-            SetCamera(cam, ConnectionState.Demo);
+            var sub = Subscribe(cam);
+            try { await Task.Run(cam.Start); }
+            catch
+            {
+                sub.Dispose();
+                cam.Dispose();
+                throw;
+            }
+            TrySetCamera(cam, sub, ConnectionState.Demo);
         }
         catch (Exception ex)
         {
+            if (_shuttingDown) return;
             State = ConnectionState.NoCamera;
             Notify("Демо-режим не запустился", ex.Message, NotifyKind.Error);
         }
@@ -346,37 +417,61 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private void SetCamera(ICamera cam, ConnectionState state)
+    /// <summary>
+    /// Установить открытую камеру. Если окно уже закрывается (Shutdown прошёл, пока шло Open/Start),
+    /// камера не устанавливается, а закрывается в фоне. false — не установлена.
+    /// </summary>
+    private bool TrySetCamera(ICamera cam, IDisposable subscription, ConnectionState state)
     {
+        if (_shuttingDown)
+        {
+            subscription.Dispose();
+            _ = Task.Run(() => { try { cam.Dispose(); } catch { /* выход */ } });
+            return false;
+        }
         _camera = cam;
+        _cameraSubscription = subscription;
         Volatile.Write(ref _lastFrameTicks, Environment.TickCount64);
         State = state;
         OnPropertyChanged(nameof(Camera));
         OnPropertyChanged(nameof(CameraTitle));
         CameraChanged?.Invoke();
+        return true;
     }
 
-    private void Subscribe(ICamera cam)
-    {
-        _frameHandler = f => OnCameraFrame(cam, f);
-        _errorHandler = msg => OnCameraError(msg);
-        cam.FrameReceived += _frameHandler;
-        cam.Error += _errorHandler;
-    }
+    /// <summary>Подписка на события конкретной камеры; Dispose отписывает именно эти обработчики.</summary>
+    private IDisposable Subscribe(ICamera cam) => new CameraSubscription(cam, f => OnCameraFrame(cam, f), OnCameraError);
 
-    private void Unsubscribe(ICamera cam)
+    private sealed class CameraSubscription : IDisposable
     {
-        if (_frameHandler is not null) cam.FrameReceived -= _frameHandler;
-        if (_errorHandler is not null) cam.Error -= _errorHandler;
-        _frameHandler = null;
-        _errorHandler = null;
+        private ICamera? _cam;
+        private readonly Action<CameraFrame> _frame;
+        private readonly Action<string> _error;
+
+        public CameraSubscription(ICamera cam, Action<CameraFrame> frame, Action<string> error)
+        {
+            _cam = cam;
+            _frame = frame;
+            _error = error;
+            cam.FrameReceived += frame;
+            cam.Error += error;
+        }
+
+        public void Dispose()
+        {
+            var cam = Interlocked.Exchange(ref _cam, null);
+            if (cam is null) return;
+            cam.FrameReceived -= _frame;
+            cam.Error -= _error;
+        }
     }
 
     private async Task CloseCameraAsync()
     {
         var cam = _camera;
         if (cam is null) return;
-        Unsubscribe(cam);
+        _cameraSubscription?.Dispose();
+        _cameraSubscription = null;
         _camera = null;
         lock (_frameLock) _pendingRaw = null;
         try { await Task.Run(cam.Dispose); }
@@ -417,7 +512,7 @@ public partial class MainViewModel : ObservableObject
 
         if (_tickCount % PollEveryTicks == 0
             && State is ConnectionState.NoCamera or ConnectionState.NoDrivers or ConnectionState.Lost
-            && _switchLock.CurrentCount > 0)
+            && !_installing && _switchLock.CurrentCount > 0)
         {
             _ = PollAsync();
         }
@@ -442,6 +537,7 @@ public partial class MainViewModel : ObservableObject
     private async Task PollAsync()
     {
         var found = await Task.Run(() => CameraFactory.IsDriverAvailable() && CameraFactory.CountRealCameras() > 0);
+        if (_installing || _shuttingDown) return;
         if (found && State is ConnectionState.NoCamera or ConnectionState.NoDrivers or ConnectionState.Lost)
             await ConnectCoreAsync(userInitiated: false);
         else if (!found && State == ConnectionState.NoDrivers && CameraFactory.IsDriverAvailable())
@@ -476,12 +572,13 @@ public partial class MainViewModel : ObservableObject
             CameraFrame processed;
             try
             {
-                if (adj.IsIdentity) processed = raw;
+                if (adj.IsIdentity) processed = raw;   // не из пула: неизменяемый кадр камеры
                 else
                 {
-                    var dst = new byte[raw.Bgr24.Length];
-                    ImageProcessor.Apply(raw.Bgr24, dst, raw.Width, raw.Height, adj);
-                    processed = new CameraFrame { Bgr24 = dst, Width = raw.Width, Height = raw.Height, Sequence = raw.Sequence, Timestamp = raw.Timestamp };
+                    // Буфер из пула (счётчик 1 — ссылка «последний кадр»); свободен только когда все ссылки отпущены.
+                    processed = _pool.Rent(raw.Width, raw.Height, raw.Sequence, raw.Timestamp);
+                    try { ImageProcessor.Apply(raw.Bgr24, processed.Bgr24, raw.Width, raw.Height, adj); }
+                    catch { _pool.Release(processed); throw; }
                 }
             }
             catch (Exception ex)
@@ -493,29 +590,66 @@ public partial class MainViewModel : ObservableObject
             lock (_frameLock)
             {
                 // Кадр, пришедший до паузы, не должен заменить замороженный.
-                if (_isFrozen && !ReferenceEquals(raw, _frozenRaw)) continue;
+                if (_isFrozen && !ReferenceEquals(raw, _frozenRaw)) { _pool.Release(processed); continue; }
                 _latestRaw = raw;
+                _pool.Release(_latestProcessed);
                 _latestProcessed = processed;
+                _pool.AddRef(processed);              // ссылка «ждёт отрисовки»
+                _pool.Release(_renderPending);
                 _renderPending = processed;
             }
+            if (Interlocked.CompareExchange(ref _renderHooked, 1, 0) == 0) _ui.BeginInvoke(HookRendering);
+            // Пока идёт обработчик, кадр остаётся «последним»: заменить его может только этот же поток.
             try { ProcessedFrameReady?.Invoke(processed); }
             catch (Exception ex) { OnCameraError(ex.Message); }
         }
     }
 
+    // CompositionTarget.Rendering подписан, только пока идут кадры: подписка — при первом кадре,
+    // отписка — после RenderIdleFrames отрисовок без новых кадров.
+    private void HookRendering()
+    {
+        if (_shuttingDown) return;
+        _renderIdle = 0;
+        CompositionTarget.Rendering -= OnRendering;
+        CompositionTarget.Rendering += OnRendering;
+    }
+
+    private void UnhookRendering()
+    {
+        CompositionTarget.Rendering -= OnRendering;
+        Volatile.Write(ref _renderHooked, 0);
+        bool pending;
+        lock (_frameLock) pending = _renderPending is not null;
+        // Кадр мог прийти между проверкой и отпиской — подписаться снова.
+        if (pending && !_shuttingDown && Interlocked.CompareExchange(ref _renderHooked, 1, 0) == 0) HookRendering();
+    }
+
     private void OnRendering(object? sender, EventArgs e)
     {
         CameraFrame? f;
-        lock (_frameLock) { f = _renderPending; _renderPending = null; }
-        if (f is null) return;
-        if (_bitmap is null || _bitmap.PixelWidth != f.Width || _bitmap.PixelHeight != f.Height)
+        lock (_frameLock) { f = _renderPending; _renderPending = null; }   // ссылка «ждёт отрисовки» переходит сюда
+        if (f is null)
         {
-            _bitmap = new WriteableBitmap(f.Width, f.Height, 96, 96, PixelFormats.Bgr24, null);
-            PreviewBitmap = _bitmap;
-            FrameWidth = f.Width;
-            FrameHeight = f.Height;
+            if (++_renderIdle >= RenderIdleFrames) UnhookRendering();
+            return;
         }
-        _bitmap.WritePixels(new Int32Rect(0, 0, f.Width, f.Height), f.Bgr24, f.Width * 3, 0);
+        _renderIdle = 0;
+        try
+        {
+            if (_bitmap is null || _bitmap.PixelWidth != f.Width || _bitmap.PixelHeight != f.Height)
+            {
+                _bitmap = new WriteableBitmap(f.Width, f.Height, 96, 96, PixelFormats.Bgr24, null);
+                PreviewBitmap = _bitmap;
+                FrameWidth = f.Width;
+                FrameHeight = f.Height;
+            }
+            _bitmap.WritePixels(new Int32Rect(0, 0, f.Width, f.Height), f.Bgr24, f.Width * 3, 0);
+        }
+        finally
+        {
+            _pool.Release(f);
+        }
     }
 
     // ───── Команды ─────
@@ -529,18 +663,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ShowAdvanced()
     {
-        var host = ContentDialogHost.GetForWindow(Owner);
-        if (host is null) return;
         var vm = new AdvancedSettingsViewModel(this);
-        var dialog = new ContentDialog(host)
+        var dialog = new ContentDialog
         {
             Title = "Дополнительно",
             Content = new AdvancedSettingsView { DataContext = vm },
             PrimaryButtonText = "Применить",
             CloseButtonText = "Отмена",
-            DialogMaxWidth = 560,
         };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary) await vm.ApplyAsync();
+        if (await Dialogs.ShowAsync(Owner, dialog, 560) == ContentDialogResult.Primary) await vm.ApplyAsync();
     }
 
     /// <summary>Сброс всех настроек к значениям по умолчанию (объект Settings остаётся тем же).</summary>
@@ -551,25 +682,59 @@ public partial class MainViewModel : ObservableObject
             if (p.CanWrite && p.CanRead) p.SetValue(Settings, p.GetValue(defaults));
         Adjustments = ImageAdjustments.Default;
         IsPanelCollapsed = false;
+        SettingsReplaced?.Invoke();   // панели перечитывают пресеты, объективы, экспорт
         SaveSettingsSoon();
         Notify("Настройки сброшены", "Часть изменений вступит в силу после перезапуска.", NotifyKind.Success);
     }
 
-    /// <summary>Закрытие окна: остановить камеру и конвейер, сохранить настройки.</summary>
+    /// <summary>
+    /// Перед установкой драйверов: закрыть камеру и выключить автопереподключение
+    /// (включается снова при ConnectAsync/StartDemo). Возвращает, был ли включён демо-режим.
+    /// </summary>
+    public async Task<bool> DisconnectForInstallAsync()
+    {
+        await _switchLock.WaitAsync();
+        try
+        {
+            var wasDemo = State == ConnectionState.Demo;
+            _installing = true;
+            await CloseCameraAsync();
+            if (State is ConnectionState.Streaming or ConnectionState.Demo or ConnectionState.Connecting or ConnectionState.Lost)
+                State = ConnectionState.NoCamera;
+            return wasDemo;
+        }
+        finally
+        {
+            _switchLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Закрытие окна: остановить камеру (в фоне, ждём не дольше 3 с — окно закрывается в любом случае),
+    /// конвейер и сохранить настройки.
+    /// </summary>
     public void Shutdown()
     {
+        if (_shuttingDown) return;
+        _shuttingDown = true;   // камера, открывшаяся после этого (шло Open/Start), не установится, а закроется
         _tick.Stop();
+        _saveTimer.Stop();
         CompositionTarget.Rendering -= OnRendering;
         var cam = _camera;
         _camera = null;
+        _cameraSubscription?.Dispose();
+        _cameraSubscription = null;
         if (cam is not null)
         {
-            Unsubscribe(cam);
-            try { cam.Dispose(); } catch { /* при выходе ошибки закрытия не важны */ }
+            var closing = Task.Run(() => { try { cam.Dispose(); } catch { /* при выходе ошибки закрытия не важны */ } });
+            closing.Wait(CloseCameraTimeout);
         }
         _disposed = true;
         _signal.Set();
+        Gallery.Close();
         Settings.Adjustments = _adjustments;
+        _saveThrottle.Request();   // финальный снимок: размер окна и всё, что поменялось
+        _saveThrottle.Flush();
         _store.Dispose(); // Flush без исключений
     }
 }

@@ -8,6 +8,8 @@ using LumeneraViewer.Overlays;
 using LumeneraViewer.Settings;
 using Wpf.Ui.Controls;
 
+using LumeneraViewer.UI;
+
 namespace LumeneraViewer.ViewModels;
 
 /// <summary>
@@ -36,6 +38,17 @@ public partial class ScalePanelViewModel : ObservableObject
         ReloadNames();
         _manualLengthText = FormatManual();
         host.PropertyChanged += OnHostChanged;
+        host.SettingsReplaced += OnSettingsReplaced;
+    }
+
+    /// <summary>Настройки заменены (сброс): объективы, плашка и сетка перечитываются из Settings.</summary>
+    private void OnSettingsReplaced()
+    {
+        EnsureObjectives();
+        ReloadNames();
+        _manualLengthText = FormatManual();
+        OnPropertyChanged(string.Empty);
+        RaiseChanged(save: false);
     }
 
     private void OnHostChanged(object? sender, PropertyChangedEventArgs e)
@@ -319,40 +332,9 @@ public partial class ScalePanelViewModel : ObservableObject
 
     // ───── Диалоги ─────
 
-    private async Task<string?> AskTextAsync(string title, string prompt, string initial, string ok)
-    {
-        var host = ContentDialogHost.GetForWindow(Host.Owner);
-        if (host is null) return null;
-        var box = new Wpf.Ui.Controls.TextBox { Text = initial, MinWidth = 280 };
-        var panel = new System.Windows.Controls.StackPanel();
-        panel.Children.Add(new System.Windows.Controls.TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-        panel.Children.Add(box);
-        var dialog = new ContentDialog(host)
-        {
-            Title = title,
-            Content = panel,
-            PrimaryButtonText = ok,
-            CloseButtonText = "Отмена",
-            DialogMaxWidth = 420,
-        };
-        dialog.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return null;
-        var text = box.Text.Trim();
-        return text.Length == 0 ? null : text;
-    }
+    private Task<string?> AskTextAsync(string title, string prompt, string initial, string ok)
+        => Dialogs.AskTextAsync(Host.Owner, title, prompt, initial, ok);
 
-    private async Task<bool> ConfirmAsync(string title, string message)
-    {
-        var host = ContentDialogHost.GetForWindow(Host.Owner);
-        if (host is null) return false;
-        var dialog = new ContentDialog(host)
-        {
-            Title = title,
-            Content = message,
-            PrimaryButtonText = "Удалить",
-            CloseButtonText = "Отмена",
-            DialogMaxWidth = 420,
-        };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
-    }
+    private Task<bool> ConfirmAsync(string title, string message)
+        => Dialogs.ConfirmAsync(Host.Owner, title, message, "Удалить");
 }

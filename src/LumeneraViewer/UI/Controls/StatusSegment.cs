@@ -27,6 +27,15 @@ public sealed class StatusSegment : ContentControl
     public static readonly DependencyProperty IndicatorProperty = DependencyProperty.Register(
         nameof(Indicator), typeof(object), typeof(StatusSegment), new PropertyMetadata(null));
 
+    /// <summary>
+    /// true — вместо значения (Content) показывается прочерк «—». Единственный способ задать прочерк:
+    /// все сегменты панели статуса привязывают его к одному условию (MainViewModel.IsPlaceholderVisible).
+    /// </summary>
+    public static readonly DependencyProperty IsEmptyProperty = DependencyProperty.Register(
+        nameof(IsEmpty), typeof(bool), typeof(StatusSegment), new PropertyMetadata(false));
+
+    public bool IsEmpty { get => (bool)GetValue(IsEmptyProperty); set => SetValue(IsEmptyProperty, value); }
+
     /// <summary>Подпись над значением (выводится заглавными).</summary>
     public string Caption { get => (string)GetValue(CaptionProperty); set => SetValue(CaptionProperty, value); }
     public string CaptionText => (string)GetValue(CaptionTextProperty);

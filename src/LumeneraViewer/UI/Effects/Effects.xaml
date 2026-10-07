@@ -109,11 +109,18 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{TemplateBinding CaptionText}" FontSize="10" FontWeight="SemiBold"
                                            Foreground="#73FFFFFF" Margin="0,0,0,2"/>
-                                <ContentPresenter/>
+                                <Grid>
+                                    <ContentPresenter x:Name="PART_Value"/>
+                                    <TextBlock x:Name="PART_Empty" Text="—" Style="{StaticResource StatusValue}" Visibility="Collapsed"/>
+                                </Grid>
                             </StackPanel>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEmpty" Value="True">
+                            <Setter TargetName="PART_Value" Property="Visibility" Value="Hidden"/>
+                            <Setter TargetName="PART_Empty" Property="Visibility" Value="Visible"/>
+                        </Trigger>
                         <Trigger Property="Indicator" Value="{x:Null}">
                             <Setter TargetName="PART_Icon" Property="Visibility" Value="Visible"/>
                             <Setter TargetName="PART_Indicator" Property="Visibility" Value="Collapsed"/>

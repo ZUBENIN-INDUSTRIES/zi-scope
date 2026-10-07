@@ -26,8 +26,60 @@ public partial class PreviewOverlay : UserControl
         _surface = new Surface(this);
         Content = _surface;
         DataContextChanged += (_, _) => Attach(DataContext as MainViewModel);
-        Unloaded += (_, _) => Attach(null);
-        Loaded += (_, _) => Attach(DataContext as MainViewModel);
+        Unloaded += (_, _) => { Attach(null); HookAncestor(null); };
+        Loaded += (_, _) => { Attach(DataContext as MainViewModel); HookAncestor(FindPanHost()); };
+    }
+
+    // ───── Клик вне кадра между первым и вторым кликом линейки/калибровки ─────
+    // Оверлей размером с кадр: клик мимо кадра до него не доходит и ушёл бы в панораму ZoomPanHost.
+    // Поэтому ловим его туннельным событием предка: точка ограничивается кадром, построение завершается.
+
+    private UIElement? _panHost;
+
+    private UIElement? FindPanHost()
+    {
+        UIElement? last = null;
+        for (DependencyObject? d = VisualTreeHelper.GetParent(this); d is not null; d = VisualTreeHelper.GetParent(d))
+        {
+            if (d is UI.Controls.ZoomPanHost z) return z;
+            if (d is UIElement u) last = u;
+        }
+        return last;
+    }
+
+    private void HookAncestor(UIElement? host)
+    {
+        if (_panHost is not null)
+        {
+            _panHost.PreviewMouseLeftButtonDown -= OnHostPreviewLeftDown;
+            _panHost.PreviewMouseMove -= OnHostPreviewMove;
+        }
+        _panHost = host;
+        if (host is not null)
+        {
+            host.PreviewMouseLeftButtonDown += OnHostPreviewLeftDown;
+            host.PreviewMouseMove += OnHostPreviewMove;
+        }
+    }
+
+    private bool IsOutsideFrame(Point p) => p.X < 0 || p.Y < 0 || p.X > FrameSize.Width || p.Y > FrameSize.Height;
+
+    private void OnHostPreviewLeftDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_start is null || _vm?.ActiveTool is not (PreviewTool.Ruler or PreviewTool.Calibrate)) return;
+        var p = e.GetPosition(this);
+        if (!IsOutsideFrame(p)) return;   // клик по кадру обработает сам оверлей
+        e.Handled = true;                 // не панорамировать
+        ToolClick(Clamp(p));
+    }
+
+    private void OnHostPreviewMove(object sender, MouseEventArgs e)
+    {
+        if (_start is null) return;
+        var p = e.GetPosition(this);
+        if (!IsOutsideFrame(p)) return;
+        _end = Snap(Clamp(p));
+        Redraw();
     }
 
     private void Attach(MainViewModel? vm)
@@ -97,18 +149,7 @@ public partial class PreviewOverlay : UserControl
         if (_vm.ActiveTool is PreviewTool.Ruler or PreviewTool.Calibrate)
         {
             e.Handled = true;
-            if (_start is not { } a)
-            {
-                _start = p;
-                _end = p;
-                Redraw();
-                return;
-            }
-            var b = Snap(p);
-            _start = null;
-            Redraw();
-            if (_vm.ActiveTool == PreviewTool.Ruler) _vm.MeasurePanel.Add(new Measurement(a, b));
-            else _ = _vm.ScalePanel.CompleteCalibrationAsync(a, b);
+            ToolClick(p);
             return;
         }
 
@@ -119,6 +160,24 @@ public partial class PreviewOverlay : UserControl
             CaptureMouse();
             e.Handled = true; // не панорамировать
         }
+    }
+
+    /// <summary>Клик линейки/калибровки в координатах кадра (уже ограничен кадром).</summary>
+    private void ToolClick(Point p)
+    {
+        if (_vm is null) return;
+        if (_start is not { } a)
+        {
+            _start = p;
+            _end = p;
+            Redraw();
+            return;
+        }
+        var b = Snap(p);
+        _start = null;
+        Redraw();
+        if (_vm.ActiveTool == PreviewTool.Ruler) _vm.MeasurePanel.Add(new Measurement(a, b));
+        else _ = _vm.ScalePanel.CompleteCalibrationAsync(a, b);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
