@@ -36,7 +36,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" Foreground="{StaticResource Zs.Text}"/>
-                                    <TextBlock Text="{Binding MicronsPerPixel, StringFormat={}{0:0.#####} мкм/px}" Style="{StaticResource MutedText}" FontSize="11.5"/>
+                                    <TextBlock Text="{Binding MicronsPerPixel, StringFormat={}{0:0.#####}&#x00A0;мкм/px}" TextWrapping="NoWrap" Style="{StaticResource MutedText}" FontSize="11.5"/>
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" MinWidth="86" Margin="6,0" ItemsSource="{Binding Magnifications}"
                                           SelectedItem="{Binding TargetMagnification}" ItemStringFormat="×{0}" ToolTip="Какому увеличению соответствует"/>

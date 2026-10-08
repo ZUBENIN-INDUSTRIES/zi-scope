@@ -1,4 +1,4 @@
-﻿<ui:FluentWindow x:Class="LumeneraViewer.MainWindow"
+<ui:FluentWindow x:Class="LumeneraViewer.MainWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -15,7 +15,8 @@
                  Foreground="{StaticResource Zs.Text}"
                  FontFamily="{StaticResource Zs.Font}"
                  FontSize="13">
-    <Grid>
+    <!-- Фон — на корне: FluentWindow без подложки иначе показывает системный #202020 -->
+    <Grid Background="{StaticResource Zs.Window}">
         <Grid x:Name="Root">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -89,13 +90,13 @@
                     </ToggleButton>
                     <ui:Button Icon="{ui:SymbolIcon ZoomFit24}" Content="Вписать" ToolTip="Вписать (Ctrl+0, двойной клик)" Click="Fit_Click" Margin="0,0,6,0" Focusable="False"/>
                     <ui:Button Content="1:1" ToolTip="Пиксель в пиксель (Ctrl+1)" Click="ActualPixels_Click" Margin="0,0,6,0" Focusable="False"/>
-                    <ui:Button Icon="{ui:SymbolIcon PanelRight24}" ToolTip="Панель (Tab)" Command="{Binding TogglePanelCommand}" Margin="0,0,6,0" Focusable="False"/>
+                    <ui:Button Icon="{ui:SymbolIcon PanelLeft24}" ToolTip="Панель (Tab)" Command="{Binding TogglePanelCommand}" Margin="0,0,6,0" Focusable="False"/>
                     <!-- Уведомления: журнал в отдельном окне, здесь только значок с числом непрочитанных -->
                     <ui:Button ToolTip="Уведомления" AutomationProperties.Name="Уведомления" Command="{Binding ShowNotificationsCommand}" Margin="0,0,6,0" Padding="9,5" Focusable="False">
                         <Grid>
                             <ui:SymbolIcon Symbol="Alert24" FontSize="16"/>
                             <Border Visibility="{Binding Notifications.HasUnread, Converter={StaticResource BoolToVis}}"
-                                    MinWidth="15" Height="15" CornerRadius="7.5" Padding="3,0"
+                                    MinWidth="15" Height="15" fx:Pill.IsPill="True" Padding="3,0"
                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-9,0">
                                 <Border.Style>
                                     <Style TargetType="Border">
@@ -149,18 +150,18 @@
             <!-- Рабочая область -->
             <Grid Grid.Row="2" Margin="12,0,12,12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Grid>
+                <Grid Grid.Column="1">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Превью -->
-                    <Border CornerRadius="8" Background="{StaticResource Zs.Input}" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1">
+                    <Border CornerRadius="{StaticResource Zs.RadiusPanel}" Background="{StaticResource Zs.Input}">
                         <Grid>
                             <c:ZoomPanHost x:Name="Zoom" Margin="1"
                                            Zoom="{Binding PreviewZoom, Mode=OneWayToSource}"
@@ -176,14 +177,26 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10"
                                         IsHitTestVisible="False"
                                         Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-                                <Border Background="#E61E2024" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1" CornerRadius="6" Padding="8,3" Margin="0,0,6,0">
+                                <Border Background="{StaticResource Zs.Scrim}" fx:Pill.IsPill="True" Padding="10,3" Margin="0,0,6,0">
                                     <TextBlock Text="{Binding PreviewZoom, StringFormat={}{0:P0}}" FontSize="12" Foreground="{StaticResource Zs.Text}"/>
                                 </Border>
-                                <Border Background="{StaticResource Zs.Warning}" CornerRadius="6" Padding="8,3"
+                                <Border Background="{StaticResource Zs.Warning}" fx:Pill.IsPill="True" Padding="10,3"
                                         Visibility="{Binding IsFrozen, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="ПАУЗА" FontSize="11.5" FontWeight="SemiBold" Foreground="#1E2024"/>
+                                    <TextBlock Text="ПАУЗА" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Zs.Window}"/>
                                 </Border>
                             </StackPanel>
+
+                            <!-- Серия: просьба переключить микроскоп — неброская плашка поверх превью -->
+                            <Border DataContext="{Binding SeriesPanel}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="16,12,16,0"
+                                    Background="{StaticResource Zs.Scrim}" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1"
+                                    fx:Pill.IsPill="True" Padding="14,6" IsHitTestVisible="False"
+                                    Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Microscope24" FontSize="16" Foreground="{StaticResource Zs.Accent}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PromptText}" FontSize="12.5" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Border>
 
                             <!-- Экран «нет камеры» -->
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440"
@@ -230,8 +243,8 @@
                     </Border>
                 </Grid>
 
-                <!-- Правая панель: содержимое вкладки + полоса вкладок-иконок (как activity bar) -->
-                <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource ZsPanel}">
+                <!-- Левая панель (G07): полоса вкладок-иконок (как activity bar) + содержимое вкладки -->
+                <Border Grid.Column="0" Margin="0,0,10,0" Style="{StaticResource ZsPanel}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -239,7 +252,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Grid Width="320"
+                        <Grid Grid.Column="2" Width="320"
                               Visibility="{Binding IsPanelCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -273,10 +286,31 @@
                             </ScrollViewer>
 
                             <Border Grid.Row="2" BorderBrush="{StaticResource Zs.Border}" BorderThickness="0,1,0,0" Padding="12">
-                                <Button Style="{StaticResource ZsPrimaryButton}" Command="{Binding PrimaryCaptureCommand}" ToolTip="Снимок (Пробел)">
+                                <Button Command="{Binding PrimaryCaptureCommand}" AutomationProperties.Name="Главный снимок">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource ZsPrimaryButton}">
+                                            <Setter Property="ToolTip" Value="Снимок (Пробел)"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SeriesPanel.IsActive}" Value="True">
+                                                    <Setter Property="ToolTip" Value="Снять шаг серии (Пробел)"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
                                     <StackPanel Orientation="Horizontal">
-                                        <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="16" Foreground="White" Margin="0,0,8,0"/>
-                                        <TextBlock Text="Снимок" VerticalAlignment="Center"/>
+                                        <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="16" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="0,0,8,0"/>
+                                        <TextBlock VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="Снимок"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SeriesPanel.IsActive}" Value="True">
+                                                            <Setter Property="Text" Value="Снять шаг"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <Border Style="{StaticResource ZsKeyHint}">
                                             <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>
                                         </Border>
@@ -288,7 +322,7 @@
                         <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource Zs.Border}"
                                    Visibility="{Binding IsPanelCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
 
-                        <StackPanel x:Name="TabBar" Grid.Column="2" Width="44" Margin="0,4,0,4">
+                        <StackPanel x:Name="TabBar" Grid.Column="0" Width="48" Margin="0,6,0,6">
                             <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="camera" ToolTip="Камера" AutomationProperties.Name="Камера"
                                          Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
                                 <ui:SymbolIcon Symbol="Camera24" FontSize="20"/>

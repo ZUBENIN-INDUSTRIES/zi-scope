@@ -67,18 +67,18 @@ public partial class MainWindow : FluentWindow
 
     private void SelectTab(string key, bool animate)
     {
-        var tab = TabBar.Children.OfType<RadioButton>().FirstOrDefault(t => (string)t.Tag == key)
+        var tab = TabBar.Children.OfType<RadioButton>().FirstOrDefault(t => t.Tag as string == key)
                   ?? TabBar.Children.OfType<RadioButton>().First();
         _selectingTab = !animate;
         tab.IsChecked = true;
         _selectingTab = false;
-        ShowPage((string)tab.Tag, (string)tab.ToolTip, animate);
+        ShowPage(tab.Tag as string ?? "camera", tab.ToolTip as string ?? "", animate);
     }
 
     private void Tab_Checked(object sender, RoutedEventArgs e)
     {
         if (_selectingTab || sender is not RadioButton { Tag: string key } tab) return;
-        ShowPage(key, (string)tab.ToolTip, animate: true);
+        ShowPage(key, tab.ToolTip as string ?? "", animate: true);
         _vm.Settings.Extensions[TabSettingsKey] = JsonSerializer.SerializeToElement(key);
         _vm.SaveSettingsSoon();
         _vm.IsPanelCollapsed = false;
@@ -99,7 +99,7 @@ public partial class MainWindow : FluentWindow
         TabTitle.Text = title;
         foreach (var page in Pages.Children.OfType<FrameworkElement>())
         {
-            var visible = (string)page.Tag == key;
+            var visible = page.Tag as string == key;
             page.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             if (visible && animate) Entrance.Play(page);
         }

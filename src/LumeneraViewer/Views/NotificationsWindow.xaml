@@ -15,7 +15,7 @@
                  FontFamily="{StaticResource Zs.Font}"
                  FontSize="12.5">
     <!-- DataContext — NotificationLog -->
-    <Grid>
+    <Grid Background="{StaticResource Zs.Window}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

@@ -62,8 +62,11 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <!-- Формула — отдельной строкой без переноса: иначе «мкм/px» рвётся после «/» -->
             <TextBlock Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
-                       Text="Без калибровки значение пересчитывается от ближайшего откалиброванного: мкм/px₂ = мкм/px₁ × M₁ / M₂."/>
+                       Text="Без калибровки значение пересчитывается от ближайшего откалиброванного, обратно пропорционально увеличению:"/>
+            <TextBlock Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="NoWrap" Margin="0,2,0,0"
+                       Text="мкм/px₂ = мкм/px₁ × M₁ / M₂"/>
         </StackPanel>
     </Border>
 </UserControl>

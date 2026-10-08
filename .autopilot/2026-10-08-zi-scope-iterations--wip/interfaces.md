@@ -107,3 +107,12 @@ SeriesPanelViewModel SeriesPanel { get; }       // таск 06 (заглушка
 - `sealed class SeriesRunner(SeriesSession, ISeriesEnvironment) { Session; Plan; Current; SeriesStepKey? LastCaptured; event Action? Changed; bool NeedsScale; CanCaptureFull(k); IsPartial(k) /*Done && Files < Kinds*/; KindsFor(bool cleanOnly); PathsFor(k, cleanOnly); bool SyncMagnification(); Task<StepCaptureResult> CaptureAsync(SaveFrameKind, bool cleanOnly=false); Reshoot(k); bool ReshootPrevious(); Delete(k); Skip(k); MakeCurrent(k); Move(dGroup, dSample) }`.
 - `SeriesPanelViewModel`: `IsActive`, `IsDesigning`, `SeriesRunner? Runner`, `CaptureStepCommand` (CanExecute=false без калибровки), `CaptureCleanCommand`, `Steps`, `CurrentItem`, `PromptMagnification`/`HasPrompt`/`PromptText`, `BuildPlan()`. Ctrl+Z — PreviewKeyDown окна (переснять предыдущий). Метаданные .json шага: `Extra` = Series, Group, Sample, Magnification, Kind, KindName, Decoration.
 - Не сделано (зона MainWindow): плашка «Переключите на ×M» на самом превью; подпись главной кнопки во время серии («Снимок» → «Снять шаг») — кандидаты для таска 08.
+
+## Из таска 08 — палитра Gemini, меню слева
+
+- `Palette.OnAccent` (#062E6F), `Scrim`, `GridLine`; кисти `OnAccentBrush`, `OnAccentSubtleBrush`, `ScrimBrush`, `GridLineBrush`; `Palette.Input` = `Panel`; `ChannelMaster` = `Text`; `HslSectors` собран из ChannelRed/Green/Blue, Warning + 4 оттенка.
+- `Theme.RadiusControl` (8), `Theme.RadiusPanel` (16); ресурсы `Zs.OnAccent`, `Zs.OnAccentSubtle`, `Zs.Scrim`, `Zs.RadiusGroup` (12); `Zs.RadiusControl/RadiusPanel` — через x:Static из Theme.
+- `fx:Pill.IsPill="True"` — скругление «таблеткой»; неявные стили дают его всем ui:Button/Button/ToggleButton (CheckBox — 4).
+- Раскладка: TabBar в колонке 0 (слева), страницы в колонке 2, превью справа; ключ `ui.rightTab` прежний. Главная кнопка — `AutomationProperties.Name="Главный снимок"`, в серии «Снять шаг»; плашка «Переключите микроскоп на ×M» поверх превью.
+- FluentWindow без подложки: фон `Zs.Window` на корневом Grid каждого окна (иначе системный #202020).
+- Проверки вручную — `ZI-scope.exe --settings <scratch>\settings.json` (не трогает %AppData%).

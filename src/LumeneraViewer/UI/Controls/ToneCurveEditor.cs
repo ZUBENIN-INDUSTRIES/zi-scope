@@ -17,8 +17,8 @@ public sealed class ToneCurveEditor : FrameworkElement
     private const double HitRadius = 9;
 
     private static readonly Brush Back = Palette.InputBrush;
-    private static readonly Pen GridPen = Frozen(new Pen(Palette.Frozen(Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF)), 1));
-    private static readonly Pen DiagonalPen = Frozen(new Pen(Palette.Frozen(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)), 1) { DashStyle = DashStyles.Dash });
+    private static readonly Pen GridPen = Frozen(new Pen(Palette.GridLineBrush, 1));
+    private static readonly Pen DiagonalPen = Frozen(new Pen(Palette.Frozen(Palette.WithAlpha(Palette.Text, 0.19)), 1) { DashStyle = DashStyles.Dash });
     // Кисти и перья на канал (0 — общий, 1 — R, 2 — G, 3 — B) — создаются один раз
     private static readonly Brush[] PointFill = Palette.Channels.Select(c => (Brush)Palette.Frozen(c)).ToArray();
     private static readonly Brush[] HistFill = Palette.Channels.Select(c => (Brush)Palette.Frozen(Palette.WithAlpha(c, 0.19))).ToArray();

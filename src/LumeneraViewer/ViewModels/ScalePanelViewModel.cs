@@ -152,9 +152,13 @@ public partial class ScalePanelViewModel : ObservableObject
         OnPropertyChanged(nameof(LegacySummary));
     }
 
-    public string LegacySummary => "Найдены старые калибровки: " + string.Join(", ",
-        LegacyCalibrations.Select(i => $"{i.Name} — {FormatMpp(i.MicronsPerPixel)} мкм/px"))
-        + ". Выберите, какому увеличению соответствует каждая.";
+    /// <summary>
+    /// Пояснение над списком. Значения мкм/px здесь не повторяются — они в строках ниже, каждая своей строкой:
+    /// в сплошном тексте WPF рвёт «мкм/px» после «/», и WORD JOINER этого не держит.
+    /// </summary>
+    public string LegacySummary => LegacyCalibrations.Count == 1
+        ? "Найдена старая калибровка объектива. Выберите, какому увеличению она соответствует."
+        : $"Найдено старых калибровок объективов: {LegacyCalibrations.Count}. Выберите, какому увеличению соответствует каждая.";
 
     [RelayCommand]
     private void TransferLegacy(LegacyCalibrationItem? item)

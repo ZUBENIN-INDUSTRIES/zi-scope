@@ -18,23 +18,13 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Текущий шаг и просьба переключить микроскоп -->
-            <Border Padding="8,4" Margin="0,0,10,0" CornerRadius="6" Background="{StaticResource Zs.Raised}">
-                <Grid>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding CurrentTitle}" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource Zs.Text}"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                    <Border CornerRadius="6" Margin="-8,-4" Padding="8,4" Background="{StaticResource Zs.Accent}"
-                            Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}" ToolTip="{Binding PromptText}">
-                        <DockPanel VerticalAlignment="Center">
-                            <ui:SymbolIcon Symbol="Microscope24" FontSize="22" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding PromptText}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextWrapping="Wrap"
-                                       VerticalAlignment="Center"/>
-                        </DockPanel>
-                    </Border>
-                </Grid>
+            <!-- Текущий шаг (просьба переключить микроскоп — плашкой поверх превью) -->
+            <Border Padding="10,4" Margin="0,0,10,0" CornerRadius="{StaticResource Zs.RadiusGroup}" Background="{StaticResource Zs.Raised}">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentTitle}" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource Zs.Text}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
             </Border>
 
             <ListBox x:Name="Map" Grid.Column="1" ItemsSource="{Binding Steps}" Background="Transparent" BorderThickness="0" Padding="0"
@@ -65,7 +55,7 @@
                         <StackPanel x:Name="Cell" Margin="0,0,4,0">
                             <TextBlock x:Name="Head" Text="{Binding Header}" FontSize="10.5" Foreground="{StaticResource Zs.TextSecondary}" Height="14"
                                        Margin="0,0,0,1"/>
-                            <Border x:Name="Tile" Width="60" Height="50" CornerRadius="5" BorderThickness="2" ClipToBounds="True"
+                            <Border x:Name="Tile" Width="60" Height="50" CornerRadius="{StaticResource Zs.RadiusControl}" BorderThickness="2" ClipToBounds="True"
                                     BorderBrush="{StaticResource Zs.Border}" Background="{StaticResource Zs.Raised}" ToolTip="{Binding Tooltip}"
                                     Cursor="Hand" Tag="{Binding DataContext, ElementName=Root}">
                                 <Border.InputBindings>
@@ -89,10 +79,10 @@
                                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="LowQuality"/>
                                     <TextBlock x:Name="Mark" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"
                                                Foreground="{StaticResource Zs.TextDisabled}"/>
-                                    <Border VerticalAlignment="Bottom" Background="#B0000000" Padding="3,0">
+                                    <Border VerticalAlignment="Bottom" Background="{StaticResource Zs.Scrim}" Padding="3,0">
                                         <DockPanel>
-                                            <TextBlock Text="{Binding MagText}" DockPanel.Dock="Right" FontSize="10" Foreground="White"/>
-                                            <TextBlock Text="{Binding Title}" FontSize="10" Foreground="White"/>
+                                            <TextBlock Text="{Binding MagText}" DockPanel.Dock="Right" FontSize="10" Foreground="{StaticResource Zs.Text}"/>
+                                            <TextBlock Text="{Binding Title}" FontSize="10" Foreground="{StaticResource Zs.Text}"/>
                                         </DockPanel>
                                     </Border>
                                 </Grid>

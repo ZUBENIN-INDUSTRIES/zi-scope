@@ -9,12 +9,12 @@ namespace LumeneraViewer.UI.Controls;
 public sealed class HistogramView : FrameworkElement
 {
     private static readonly Brush Back = Palette.InputBrush;
-    private static readonly Pen GridPen = Freeze(new Pen(Palette.Frozen(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)), 1));
-    private static readonly Brush RFill = Palette.Frozen(Color.FromArgb(0x55, 0xF8, 0x71, 0x71));
-    private static readonly Brush GFill = Palette.Frozen(Color.FromArgb(0x55, 0x4A, 0xDE, 0x80));
-    private static readonly Brush BFill = Palette.Frozen(Color.FromArgb(0x55, 0x60, 0xA5, 0xFA));
-    private static readonly Brush LFill = Palette.Frozen(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
-    private static readonly Pen LPen = Freeze(new Pen(Palette.Frozen(Color.FromArgb(0xC0, 0xFF, 0xFF, 0xFF)), 1));
+    private static readonly Pen GridPen = Freeze(new Pen(Palette.GridLineBrush, 1));
+    private static readonly Brush RFill = Palette.Frozen(Palette.WithAlpha(Palette.ChannelRed, 0.33));
+    private static readonly Brush GFill = Palette.Frozen(Palette.WithAlpha(Palette.ChannelGreen, 0.33));
+    private static readonly Brush BFill = Palette.Frozen(Palette.WithAlpha(Palette.ChannelBlue, 0.33));
+    private static readonly Brush LFill = Palette.Frozen(Palette.WithAlpha(Palette.ChannelMaster, 0.19));
+    private static readonly Pen LPen = Freeze(new Pen(Palette.Frozen(Palette.WithAlpha(Palette.ChannelMaster, 0.75)), 1));
 
     public static readonly DependencyProperty HistogramProperty = DependencyProperty.Register(
         nameof(Histogram), typeof(Histogram), typeof(HistogramView),
@@ -26,7 +26,7 @@ public sealed class HistogramView : FrameworkElement
     {
         double w = ActualWidth, h = ActualHeight;
         if (w <= 0 || h <= 0) return;
-        dc.DrawRoundedRectangle(Back, null, new Rect(0, 0, w, h), 6, 6);
+        dc.DrawRoundedRectangle(Back, null, new Rect(0, 0, w, h), Theme.RadiusControl.TopLeft, Theme.RadiusControl.TopLeft);
         for (int i = 1; i < 4; i++)
         {
             double x = Math.Round(w * i / 4) + 0.5;

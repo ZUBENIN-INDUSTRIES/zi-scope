@@ -1,19 +1,26 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Wpf.Ui.Appearance;
 
 namespace LumeneraViewer.UI.Effects;
 
 /// <summary>
-/// Перекраска тёмной темы WPF-UI в палитру ZI-scope. Вызывается один раз в <c>App.OnStartup</c>,
+/// Перекраска тёмной темы WPF-UI в палитру ZI-scope (тёмный Gemini). Вызывается один раз в <c>App.OnStartup</c>,
 /// до создания окна. Ресурсы пишутся прямо в <c>Application.Resources</c>, поэтому перекрывают
 /// и словарь темы, и то, что записал <see cref="ApplicationAccentColorManager"/>.
 /// </summary>
 public static class Theme
 {
-    /// <summary>Шрифт интерфейса: Segoe UI Variable, на старых Windows — обычный Segoe UI.</summary>
+    /// <summary>Шрифт интерфейса: Segoe UI Variable, на старых Windows — обычный Segoe UI (Google Sans офлайн недоступен).</summary>
     public static readonly FontFamily Font = new("Segoe UI Variable Text, Segoe UI");
     public const double FontSize = 13;
+
+    /// <summary>Скругление полей ввода, списков, всплывающих меню (Gemini: 8).</summary>
+    public static readonly CornerRadius RadiusControl = new(8);
+    /// <summary>Скругление панелей и диалогов (Gemini: 16).</summary>
+    public static readonly CornerRadius RadiusPanel = new(16);
 
     public static void Apply(Application app)
     {
@@ -33,8 +40,8 @@ public static class Theme
         Set("TextFillColorTertiary", Palette.TextSecondary);
         Set("TextFillColorDisabled", Palette.TextDisabled);
         Set("TextPlaceholderColor", Palette.TextDisabled);
-        // Инверсный текст в тёмной теме WPF-UI рисует бегунок включённого ToggleSwitch: белый на синем.
-        Set("TextFillColorInverse", Colors.White);
+        // Инверсный текст в тёмной теме WPF-UI рисует бегунок включённого ToggleSwitch: тёмный на голубом.
+        Set("TextFillColorInverse", Palette.OnAccent);
 
         // Фоны
         Set("ApplicationBackgroundColor", Palette.Window);
@@ -48,7 +55,7 @@ public static class Theme
         Set("CardBackgroundFillColorDefault", Palette.Panel);
         Set("CardBackgroundFillColorSecondary", Palette.Raised);
         Set("CardStrokeColorDefault", Palette.Border);
-        Set("SmokeFillColorDefault", Color.FromArgb(0x99, 0x10, 0x11, 0x14));
+        Set("SmokeFillColorDefault", Palette.Scrim);   // затемнение под диалогами
 
         // Контролы: кнопки, поля, списки
         Set("ControlFillColorDefault", Palette.Raised);
@@ -70,7 +77,7 @@ public static class Theme
         r["CircleElevationBorderBrush"] = edge;
         r["TextControlElevationBorderBrush"] = edge;
 
-        // Акцент: только сплошной синий, без «светлых» вариантов WinUI
+        // Акцент: только сплошной голубой Gemini, без «светлых» вариантов WinUI
         r["SystemAccentColor"] = Palette.Accent;
         r["SystemAccentColorPrimary"] = Palette.AccentHover;
         r["SystemAccentColorSecondary"] = Palette.Accent;
@@ -81,20 +88,19 @@ public static class Theme
         r["AccentFillColorSecondaryBrush"] = Palette.AccentHoverBrush;
         r["AccentFillColorTertiaryBrush"] = Palette.AccentPressedBrush;
         r["AccentFillColorDisabledBrush"] = Palette.RaisedBrush;
-        r["AccentTextFillColorPrimaryBrush"] = Palette.AccentHoverBrush;
-        r["AccentTextFillColorSecondaryBrush"] = Palette.AccentHoverBrush;
-        r["AccentTextFillColorTertiaryBrush"] = Palette.AccentBrush;
+        r["AccentTextFillColorPrimaryBrush"] = Palette.AccentBrush;
+        r["AccentTextFillColorSecondaryBrush"] = Palette.AccentBrush;
+        r["AccentTextFillColorTertiaryBrush"] = Palette.AccentHoverBrush;
         r["AccentControlElevationBorderBrush"] = Palette.AccentBrush;
-        Set("TextOnAccentFillColorPrimary", Colors.White);
-        Set("TextOnAccentFillColorSecondary", Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
+        Set("TextOnAccentFillColorPrimary", Palette.OnAccent);
+        Set("TextOnAccentFillColorSecondary", Palette.OnAccent);
         Set("TextOnAccentFillColorDisabled", Palette.TextDisabled);
-        Set("TextOnAccentFillColorSelectedText", Colors.White);
+        Set("TextOnAccentFillColorSelectedText", Palette.OnAccent);
 
-        // Включённый переключатель: синяя дорожка, белый бегунок
-        var white = Palette.Frozen(Colors.White);
+        // Включённый переключатель (как Material 3): голубая дорожка, тёмно-синий бегунок
         foreach (var s in new[] { "", "PointerOver", "Pressed" })
         {
-            r["ToggleSwitchKnobFillOn" + s] = white;
+            r["ToggleSwitchKnobFillOn" + s] = Palette.OnAccentBrush;
             r["ToggleSwitchStrokeOn" + s] = Palette.AccentBrush;
         }
         r["ToggleSwitchFillOn"] = Palette.AccentBrush;
@@ -106,8 +112,27 @@ public static class Theme
         Set("SystemFillColorCaution", Palette.Warning);
         Set("SystemFillColorCritical", Palette.Error);
 
+        // Скругления: поля и меню 8, диалоги 16, кнопки — «таблетки»
+        r["ControlCornerRadius"] = RadiusControl;
+        r["OverlayCornerRadius"] = RadiusPanel;
+        r["DialogOverlayCornerRadius"] = RadiusPanel;
+        foreach (var type in new[] { typeof(Wpf.Ui.Controls.Button), typeof(Button), typeof(ToggleButton) })
+            PillStyle(r, type);
+        // Флажок остаётся квадратным (как в Material): радиус 8 на квадрате 20 px превратил бы его в кружок
+        var check = new Style(typeof(CheckBox), r[typeof(CheckBox)] as Style);
+        check.Resources["ControlCornerRadius"] = new CornerRadius(4);
+        r[typeof(CheckBox)] = check;
+
         // Шрифт
         r["ContentControlThemeFontFamily"] = Font;
         r["ControlContentThemeFontSize"] = FontSize;
+    }
+
+    /// <summary>Неявный стиль «как у темы, но таблеткой» для типа кнопки.</summary>
+    private static void PillStyle(ResourceDictionary r, Type type)
+    {
+        var style = new Style(type, r[type] as Style);
+        style.Setters.Add(new Setter(Pill.IsPillProperty, true));
+        r[type] = style;
     }
 }

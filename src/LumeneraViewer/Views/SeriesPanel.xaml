@@ -58,7 +58,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <ui:TextBox Text="{Binding CustomMagText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Своё увеличение, например 400"
+                <ui:TextBox Text="{Binding CustomMagText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Своё, например 400" ToolTip="Своё увеличение, ×"
                             ClearButtonEnabled="False"/>
                 <ui:Button Grid.Column="1" Margin="6,0,0,0" Content="Добавить" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddMagnificationCommand}"/>
             </Grid>
@@ -89,9 +89,19 @@
             <ui:Button Content="Добавить вид" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddKindCommand}" HorizontalAlignment="Left"/>
 
             <TextBlock Text="Порядок обхода" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
-            <RadioButton Content="Образец за образцом (все увеличения подряд)" IsChecked="{Binding OrderBySample}" GroupName="SeriesOrder"/>
-            <RadioButton Content="По увеличениям (меньше перестановок объектива)" GroupName="SeriesOrder"
-                         IsChecked="{Binding OrderBySample, Converter={StaticResource Equals}, ConverterParameter=False, Mode=OneWay}"/>
+            <RadioButton IsChecked="{Binding OrderBySample}" GroupName="SeriesOrder" Margin="0,0,0,4">
+                <StackPanel>
+                    <TextBlock Text="Образец за образцом" TextWrapping="Wrap"/>
+                    <TextBlock Text="все увеличения подряд" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="SeriesOrder"
+                         IsChecked="{Binding OrderBySample, Converter={StaticResource Equals}, ConverterParameter=False, Mode=OneWay}">
+                <StackPanel>
+                    <TextBlock Text="По увеличениям" TextWrapping="Wrap"/>
+                    <TextBlock Text="меньше перестановок объектива" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+            </RadioButton>
 
             <TextBlock Text="Шаблон имени: {group} {sample} {mag} {kind} {series}" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
             <ui:TextBox Text="{Binding Template, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False"/>
@@ -115,7 +125,7 @@
 
             <Button Style="{StaticResource ZsPrimaryButton}" Margin="0,12,0,0" Command="{Binding StartSeriesCommand}">
                 <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="16" Foreground="White" Margin="0,0,8,0"/>
+                    <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="16" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="0,0,8,0"/>
                     <TextBlock Text="Начать серию" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
@@ -139,17 +149,16 @@
             </Border>
 
             <!-- Просьба переключить микроскоп -->
-            <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="8" Background="{StaticResource Zs.AccentSelection}"
-                    BorderBrush="{StaticResource Zs.Accent}" BorderThickness="1"
-                    Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}">
-                <DockPanel>
-                    <ui:SymbolIcon Symbol="Microscope24" FontSize="26" Foreground="{StaticResource Zs.Accent}" Margin="0,0,10,0" VerticalAlignment="Top"/>
-                    <TextBlock Text="{Binding PromptText}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource Zs.Text}"/>
-                </DockPanel>
-            </Border>
+            <!-- (крупная плашка — поверх превью, здесь только короткая строка) -->
+            <DockPanel Margin="2,10,0,0" ToolTip="{Binding PromptText}"
+                       Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}">
+                <ui:SymbolIcon Symbol="Microscope24" FontSize="16" Foreground="{StaticResource Zs.Accent}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding PromptMagnification, StringFormat=Переключите микроскоп на ×{0}}" TextWrapping="Wrap"
+                           FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
+            </DockPanel>
 
             <!-- Нет калибровки -->
-            <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="8" BorderBrush="{StaticResource Zs.Warning}" BorderThickness="1"
+            <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="{StaticResource Zs.RadiusGroup}" BorderBrush="{StaticResource Zs.Warning}" BorderThickness="1"
                     Visibility="{Binding NeedsCalibration, Converter={StaticResource BoolToVis}}">
                 <DockPanel>
                     <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource Zs.Warning}" Margin="0,0,8,0" VerticalAlignment="Top"/>
@@ -159,7 +168,7 @@
 
             <Button Style="{StaticResource ZsPrimaryButton}" Height="46" Margin="0,12,0,0" Command="{Binding CaptureStepCommand}" ToolTip="Снять шаг (Пробел)">
                 <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="18" Foreground="White" Margin="0,0,8,0"/>
+                    <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="0,0,8,0"/>
                     <TextBlock Text="Снять шаг" FontSize="15" VerticalAlignment="Center"/>
                     <Border Style="{StaticResource ZsKeyHint}">
                         <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>

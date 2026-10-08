@@ -14,7 +14,7 @@
                  FontFamily="{StaticResource Zs.Font}"
                  FontSize="13">
     <!-- DataContext — CalibrationFromImageViewModel -->
-    <Grid>
+    <Grid Background="{StaticResource Zs.Window}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

@@ -18,31 +18,37 @@
     <x:Static x:Key="Zs.AccentHover" Member="fx:Palette.AccentHoverBrush"/>
     <x:Static x:Key="Zs.AccentPressed" Member="fx:Palette.AccentPressedBrush"/>
     <x:Static x:Key="Zs.AccentSelection" Member="fx:Palette.AccentSelectionBrush"/>
+    <x:Static x:Key="Zs.OnAccent" Member="fx:Palette.OnAccentBrush"/>
+    <x:Static x:Key="Zs.OnAccentSubtle" Member="fx:Palette.OnAccentSubtleBrush"/>
+    <x:Static x:Key="Zs.Scrim" Member="fx:Palette.ScrimBrush"/>
     <x:Static x:Key="Zs.Success" Member="fx:Palette.SuccessBrush"/>
     <x:Static x:Key="Zs.Warning" Member="fx:Palette.WarningBrush"/>
     <x:Static x:Key="Zs.Error" Member="fx:Palette.ErrorBrush"/>
     <x:Static x:Key="Zs.Font" Member="fx:Theme.Font"/>
 
-    <CornerRadius x:Key="Zs.RadiusControl">6</CornerRadius>
-    <CornerRadius x:Key="Zs.RadiusPanel">8</CornerRadius>
+    <!-- Скругления Gemini: поля 8, панели 16 (источник — Theme.cs); кнопки и сегменты — «таблетки»: fx:Pill.IsPill="True" -->
+    <x:Static x:Key="Zs.RadiusControl" Member="fx:Theme.RadiusControl"/>
+    <x:Static x:Key="Zs.RadiusPanel" Member="fx:Theme.RadiusPanel"/>
+    <!-- Группа внутри панели — между полем и панелью -->
+    <CornerRadius x:Key="Zs.RadiusGroup">12</CornerRadius>
 
     <!-- ═══ Поверхности ═══ -->
 
-    <!-- Панель/карточка: фон панели, тонкая граница, радиус 8 -->
+    <!-- Панель/карточка: как в Gemini — поверхность без контура, отделена от фона цветом, радиус 16 -->
     <Style x:Key="ZsPanel" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource Zs.Panel}"/>
         <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="{StaticResource Zs.RadiusPanel}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
-    <!-- Группа внутри панели (калибровка, тайм-лапс): только контур, радиус 6 -->
+    <!-- Группа внутри панели (калибровка, тайм-лапс): только контур, радиус 12 -->
     <Style x:Key="ZsGroup" TargetType="Border">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="CornerRadius" Value="{StaticResource Zs.RadiusGroup}"/>
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
@@ -73,9 +79,9 @@
 
     <!-- ═══ Кнопки ═══ -->
 
-    <!-- Главная кнопка («Снимок», «Снять шаг»): сплошная синяя, без градиентов и свечения -->
+    <!-- Главная кнопка («Снимок», «Снять шаг»): таблетка, сплошной голубой Gemini, тёмно-синий текст -->
     <Style x:Key="ZsPrimaryButton" TargetType="Button">
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{StaticResource Zs.OnAccent}"/>
         <Setter Property="Background" Value="{StaticResource Zs.Accent}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="13"/>
@@ -87,7 +93,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" CornerRadius="6" Background="{TemplateBinding Background}">
+                    <Border x:Name="Surface" fx:Pill.IsPill="True" Background="{TemplateBinding Background}">
                         <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
@@ -110,16 +116,16 @@
 
     <!-- Подсказка клавиши внутри кнопки («Пробел») -->
     <Style x:Key="ZsKeyHint" TargetType="Border">
-        <Setter Property="Background" Value="#26FFFFFF"/>
-        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Background" Value="{StaticResource Zs.OnAccentSubtle}"/>
+        <Setter Property="fx:Pill.IsPill" Value="True"/>
         <Setter Property="Padding" Value="6,1"/>
         <Setter Property="Margin" Value="10,0,0,0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- Вкладка-иконка правой панели (как activity bar в VS Code): синяя полоска и иконка у активной -->
+    <!-- Вкладка-иконка боковой панели (activity bar): у активной — голубая иконка на подсветке-таблетке, как в Gemini -->
     <Style x:Key="ZsActivityTab" TargetType="RadioButton">
-        <Setter Property="Width" Value="44"/>
+        <Setter Property="Width" Value="48"/>
         <Setter Property="Height" Value="44"/>
         <Setter Property="Foreground" Value="{StaticResource Zs.TextSecondary}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -129,9 +135,9 @@
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
                     <Grid Background="Transparent">
-                        <Border x:Name="Hover" Margin="5" CornerRadius="6" Background="{StaticResource Zs.Raised}" Opacity="0"/>
-                        <Border x:Name="Bar" Width="2" HorizontalAlignment="Left" Margin="0,10" CornerRadius="1"
-                                Background="{StaticResource Zs.Accent}" Visibility="Hidden"/>
+                        <Border x:Name="Hover" Width="40" Height="34" fx:Pill.IsPill="True" Background="{StaticResource Zs.Raised}" Opacity="0"/>
+                        <Border x:Name="Bar" Width="40" Height="34" fx:Pill.IsPill="True"
+                                Background="{StaticResource Zs.AccentSelection}" Visibility="Hidden"/>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Grid>
@@ -169,7 +175,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="Surface" CornerRadius="4" Background="Transparent" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="Surface" fx:Pill.IsPill="True" Background="Transparent" Padding="{TemplateBinding Padding}">
                         <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -191,15 +197,16 @@
         <Setter Property="Background" Value="{StaticResource Zs.Input}"/>
         <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="6"/>
-        <Setter Property="Padding" Value="2"/>
+        <Setter Property="fx:Pill.IsPill" Value="True"/>
+        <Setter Property="Padding" Value="3"/>
     </Style>
 
     <!-- ═══ Панель статуса в шапке ═══ -->
 
     <Style x:Key="StatusPanel" TargetType="Border" BasedOn="{StaticResource ZsPanel}">
         <Setter Property="Height" Value="44"/>
-        <Setter Property="Padding" Value="2,0"/>
+        <Setter Property="fx:Pill.IsPill" Value="True"/>
+        <Setter Property="Padding" Value="8,0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Left"/>
     </Style>
@@ -226,8 +233,8 @@
         <Setter Property="Background" Value="{StaticResource Zs.Raised}"/>
         <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="Padding" Value="5,0,5,1"/>
+        <Setter Property="fx:Pill.IsPill" Value="True"/>
+        <Setter Property="Padding" Value="7,0,7,1"/>
         <Setter Property="Margin" Value="8,0,0,0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
