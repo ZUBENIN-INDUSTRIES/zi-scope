@@ -1,3 +1,4 @@
+﻿using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -71,7 +72,7 @@ public partial class MainViewModel : ObservableObject
         _store = store;
         _ui = owner.Dispatcher;
         Settings = store.Load();
-        _saveThrottle = new SaveThrottle(() => _store.ScheduleSave(Settings));
+        _saveThrottle = new SaveThrottle(() => { MagnificationSettings.StoreLive(Settings); _store.ScheduleSave(Settings); });
         _saveTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) =>
         {
             _saveTimer!.Stop();
@@ -82,6 +83,7 @@ public partial class MainViewModel : ObservableObject
         _isPanelCollapsed = Settings.Window.PanelCollapsed;
         store.SaveFailed += ex => Notify("Не удалось сохранить настройки", ex.Message, NotifyKind.Error);
 
+        SyncMagnifications();
         CameraPanel = new CameraPanelViewModel(this);
         ColorPanel = new ColorPanelViewModel(this);
         ScalePanel = new ScalePanelViewModel(this);
@@ -92,6 +94,11 @@ public partial class MainViewModel : ObservableObject
         PrimaryCaptureCommand = new RelayCommand(ExecutePrimaryCapture, () => PrimaryTarget.CanExecute(null));
         CapturePanel.CaptureCommand.CanExecuteChanged += (_, _) => PrimaryCaptureCommand.NotifyCanExecuteChanged();
         SeriesPanel.CaptureStepCommand.CanExecuteChanged += (_, _) => PrimaryCaptureCommand.NotifyCanExecuteChanged();
+        SeriesPanel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SeriesPanelViewModel.IsActive) or null or "")
+                PrimaryCaptureCommand.NotifyCanExecuteChanged();
+        };
 
         _worker = new Thread(ProcessLoop) { IsBackground = true, Name = "Обработка кадров" };
         _worker.Start();
@@ -113,6 +120,8 @@ public partial class MainViewModel : ObservableObject
     {
         if (!_ui.CheckAccess()) { _ui.BeginInvoke(SaveSettingsSoon); return; }
         if (_shuttingDown) return;
+        // Любое изменение живых значений сразу попадает в профиль текущего увеличения.
+        MagnificationSettings.StoreLive(Settings);
         if (_saveThrottle.Request()) _saveTimer.Start();
     }
 
@@ -678,6 +687,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private Task InstallDrivers() => DriverStartupFlow.ReinstallAsync(this);
     [RelayCommand] private void ToggleFreeze() => IsFrozen = !IsFrozen;
     [RelayCommand] private void TogglePanel() => IsPanelCollapsed = !IsPanelCollapsed;
+    [RelayCommand] private Task ShowConfigProfiles() => ConfigProfilesViewModel.ShowAsync(this);
 
     [RelayCommand]
     private async Task ShowAdvanced()
@@ -696,14 +706,124 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Сброс всех настроек к значениям по умолчанию (объект Settings остаётся тем же).</summary>
     public void ResetSettings()
     {
-        var defaults = new AppSettings();
-        foreach (var p in typeof(AppSettings).GetProperties())
-            if (p.CanWrite && p.CanRead) p.SetValue(Settings, p.GetValue(defaults));
-        Adjustments = ImageAdjustments.Default;
-        IsPanelCollapsed = false;
-        SettingsReplaced?.Invoke();   // панели перечитывают пресеты, объективы, экспорт
-        SaveSettingsSoon();
+        ReplaceSettings(new AppSettings());
         Notify("Настройки сброшены", "Часть изменений вступит в силу после перезапуска.", NotifyKind.Success);
+    }
+
+    /// <summary>
+    /// Заменить все настройки загруженной конфигурацией без перезапуска (UI-поток): живой цвет,
+    /// экспозиция, усиление, плашка и увеличения применяются сразу, панели перечитывают всё по SettingsReplaced.
+    /// Настройки подключения камеры вступят в силу при следующем подключении.
+    /// </summary>
+    public void LoadConfiguration(AppSettings s)
+    {
+        ArgumentNullException.ThrowIfNull(s);
+        ReplaceSettings(s);
+    }
+
+    private void ReplaceSettings(AppSettings source)
+    {
+        _ui.VerifyAccess();   // коллекции и привязки — только из UI-потока
+        Settings.CopyFrom(source);
+        IsPanelCollapsed = Settings.Window?.PanelCollapsed ?? false;
+        SyncMagnifications();
+        ApplyLive();
+        SettingsReplaced?.Invoke();   // панели перечитывают профили, плашку, экспорт
+        OnPropertyChanged(nameof(CurrentMagnification));
+        OnPropertyChanged(nameof(IsCurrentCalibrated));
+        MagnificationChanged?.Invoke(Settings.CurrentMagnification);
+        SaveSettingsSoon();
+    }
+
+    // ───── Увеличения ─────
+
+    private readonly ObservableCollection<int> _magnifications = new();
+
+    /// <summary>Увеличения, у которых есть профиль, по возрастанию (ObservableCollection).</summary>
+    public IReadOnlyList<int> AvailableMagnifications => _magnifications;
+
+    /// <summary>UI-поток, после того как профиль нового увеличения применён.</summary>
+    public event Action<int>? MagnificationChanged;
+
+    /// <summary>
+    /// Текущее увеличение. Установка: живые значения → профиль старого, профиль нового → живые
+    /// (цвет, экспозиция и усиление камеры, длина плашки, мкм/px); превью и плашка обновляются сразу.
+    /// Неизвестное увеличение получает новый профиль; вне 1–10000 — игнорируется.
+    /// </summary>
+    public int CurrentMagnification
+    {
+        get => Settings.CurrentMagnification;
+        set
+        {
+            if (!_ui.CheckAccess()) { _ui.BeginInvoke(() => CurrentMagnification = value); return; }
+            if (!MagnificationSettings.IsValid(value) || value == Settings.CurrentMagnification) return;
+            MagnificationSettings.StoreLive(Settings);
+            MagnificationSettings.LoadLive(Settings, value);
+            SyncMagnifications();
+            ApplyLive();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsCurrentCalibrated));
+            MagnificationChanged?.Invoke(value);
+            SaveSettingsSoon();
+        }
+    }
+
+    /// <summary>У текущего увеличения есть калибровка мкм/px.</summary>
+    public bool IsCurrentCalibrated => MagnificationSettings.CurrentMicronsPerPixel(Settings) is > 0;
+
+    /// <summary>Добавить профиль увеличения (нейтральный); уже существующее не меняется. Не переключает.</summary>
+    public void AddMagnification(int mag)
+    {
+        if (!MagnificationSettings.IsValid(mag)) return;
+        MagnificationSettings.GetOrCreate(Settings, mag);
+        SyncMagnifications();
+        SaveSettingsSoon();
+    }
+
+    /// <summary>Удалить профиль увеличения; текущее и последнее не удаляются (false).</summary>
+    public bool RemoveMagnification(int mag)
+    {
+        if (!MagnificationSettings.Remove(Settings, mag)) return false;
+        SyncMagnifications();
+        SaveSettingsSoon();
+        return true;
+    }
+
+    /// <summary>Калибровка или длина плашки текущего увеличения поменялась (зовёт ScalePanel).</summary>
+    public void NotifyCalibrationChanged() => OnPropertyChanged(nameof(IsCurrentCalibrated));
+
+    /// <summary>Применить профиль цвета к текущему увеличению (экспозиция и усиление — если они в профиле).</summary>
+    public void ApplyColorProfile(ColorProfile p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        Adjustments = p.Adjustments ?? ImageAdjustments.Default;
+        if (p.IncludesExposure)
+        {
+            if (p.ExposureMs is { } e) Settings.ExposureMs = e;
+            if (p.Gain is { } g) Settings.Gain = g;
+            CameraPanel.ApplyExposureGain(p.ExposureMs, p.Gain);
+        }
+        SaveSettingsSoon();
+    }
+
+    private void SyncMagnifications()
+    {
+        MagnificationSettings.GetOrCreate(Settings, Settings.CurrentMagnification);
+        var mags = Settings.Magnifications.Select(m => m.Magnification).Distinct().OrderBy(m => m).ToList();
+        if (_magnifications.SequenceEqual(mags)) return;
+        // Точечно: переключатель перестраивает сегменты на каждое изменение коллекции.
+        for (int i = _magnifications.Count - 1; i >= 0; i--)
+            if (!mags.Contains(_magnifications[i])) _magnifications.RemoveAt(i);
+        for (int i = 0; i < mags.Count; i++)
+            if (i >= _magnifications.Count || _magnifications[i] != mags[i]) _magnifications.Insert(i, mags[i]);
+    }
+
+    /// <summary>Живые значения из Settings → конвейер, камера, плашка.</summary>
+    private void ApplyLive()
+    {
+        Adjustments = Settings.Adjustments ?? ImageAdjustments.Default;
+        CameraPanel.ApplyExposureGain(Settings.ExposureMs, Settings.Gain);
+        ScalePanel.Reload();
     }
 
     /// <summary>

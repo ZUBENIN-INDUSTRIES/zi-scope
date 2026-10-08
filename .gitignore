@@ -13,3 +13,6 @@ installer/*.exe
 
 # Готовая папка для переноса (publish.ps1)
 dist/
+
+# проверочные файлы автопилота
+.autopilot/**/scratch/

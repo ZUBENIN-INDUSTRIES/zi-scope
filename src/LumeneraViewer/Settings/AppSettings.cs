@@ -31,6 +31,20 @@ public sealed class AppSettings
     /// <summary>Пользователь скрыл уведомление о старых калибровках объективов.</summary>
     public bool LegacyCalibrationDismissed { get; set; }
 
+    /// <summary>
+    /// Заменить всё содержимое на содержимое <paramref name="source"/> (загрузка конфигурации, сброс):
+    /// объект остаётся тем же, на него ссылаются панели. Живые значения считаются верными и
+    /// записываются в профиль текущего увеличения (создаётся, если его нет).
+    /// </summary>
+    public void CopyFrom(AppSettings source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        foreach (var p in typeof(AppSettings).GetProperties())
+            if (p.CanWrite && p.CanRead) p.SetValue(this, p.GetValue(source));
+        Magnifications ??= DefaultMagnifications();
+        MagnificationSettings.StoreLive(this);
+    }
+
     internal static List<MagnificationProfile> DefaultMagnifications() => new()
     {
         new MagnificationProfile { Magnification = 100 },

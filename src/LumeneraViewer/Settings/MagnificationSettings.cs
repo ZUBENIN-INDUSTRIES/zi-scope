@@ -56,6 +56,18 @@ public static class MagnificationSettings
     public static IReadOnlyList<ObjectiveProfile> LegacyCalibrations(AppSettings s) =>
         (s.Objectives ?? new()).Where(o => o.MicronsPerPixel is > 0).ToList();
 
+    /// <summary>Допустимое увеличение: целое 1–10000.</summary>
+    public const int MinMagnification = 1, MaxMagnification = 10000;
+
+    public static bool IsValid(int mag) => mag is >= MinMagnification and <= MaxMagnification;
+
+    /// <summary>Удалить профиль увеличения. Текущее и последнее не удаляются; false — ничего не удалено.</summary>
+    public static bool Remove(AppSettings s, int mag)
+    {
+        if (mag == s.CurrentMagnification || s.Magnifications is not { Count: > 1 } list) return false;
+        return list.RemoveAll(m => m.Magnification == mag) > 0;
+    }
+
     private static MagnificationProfile? Find(AppSettings s, int mag) =>
         s.Magnifications?.FirstOrDefault(m => m.Magnification == mag);
 }

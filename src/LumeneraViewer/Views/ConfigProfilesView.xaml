@@ -1,0 +1,46 @@
+<UserControl x:Class="LumeneraViewer.Views.ConfigProfilesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             MinWidth="520">
+    <!-- DataContext — ConfigProfilesViewModel -->
+    <StackPanel>
+        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Конфигурация — все настройки программы: увеличения с калибровками и цветом, профили цвета, плашка, сетка, экспорт, шаблон серии, окно."/>
+        <ui:Button Content="Сохранить текущую конфигурацию как…" Icon="{ui:SymbolIcon Save24}" Appearance="Primary"
+                   HorizontalAlignment="Stretch" Command="{Binding SaveCurrentCommand}" Margin="0,0,0,10"/>
+        <Border Style="{StaticResource ZsGroup}" Padding="2">
+            <Grid MinHeight="160" MaxHeight="260">
+                <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" MouseDoubleClick="List_DoubleClick"
+                         Background="Transparent" BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="DocumentSettings20" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ModifiedText}" Opacity="0.7" FontSize="11.5"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="Сохранённых конфигураций пока нет." Style="{StaticResource MutedText}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding HasNoItems, Converter={StaticResource BoolToVis}}"/>
+            </Grid>
+        </Border>
+        <WrapPanel Margin="0,10,0,0">
+            <ui:Button Content="Загрузить" Icon="{ui:SymbolIcon ArrowDownload24}" Margin="0,0,6,6" Command="{Binding LoadCommand}"
+                       ToolTip="Заменить текущие настройки выбранной конфигурацией (с подтверждением)"/>
+            <ui:Button Content="Переименовать" Icon="{ui:SymbolIcon Rename24}" Margin="0,0,6,6" Command="{Binding RenameCommand}"/>
+            <ui:Button Content="Удалить" Icon="{ui:SymbolIcon Delete24}" Margin="0,0,6,6" Command="{Binding DeleteCommand}"/>
+            <ui:Button Content="Экспорт…" Icon="{ui:SymbolIcon ArrowExportUp24}" Margin="0,0,6,6" Command="{Binding ExportCommand}"
+                       ToolTip="Сохранить выбранную конфигурацию в файл .zscope"/>
+            <ui:Button Content="Импорт…" Icon="{ui:SymbolIcon ArrowImport24}" Margin="0,0,6,6" Command="{Binding ImportCommand}"
+                       ToolTip="Добавить конфигурацию из файла .zscope"/>
+        </WrapPanel>
+        <TextBlock Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+            <Run Text="Папка:"/> <Run Text="{Binding FolderText, Mode=OneWay}"/>
+        </TextBlock>
+    </StackPanel>
+</UserControl>

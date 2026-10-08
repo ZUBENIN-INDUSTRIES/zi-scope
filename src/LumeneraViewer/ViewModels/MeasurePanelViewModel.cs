@@ -32,6 +32,8 @@ public partial class MeasurePanelViewModel : ObservableObject
         Host = host;
         host.PropertyChanged += OnHostChanged;
         host.ScalePanel.Changed += OnScaleChanged;
+        // Измерения сняты при калибровке старого увеличения — на новом их микроны были бы неверны.
+        host.MagnificationChanged += _ => ClearAll();
         Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasItems));
     }
 

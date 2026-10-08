@@ -8,7 +8,8 @@
 - Пространства имён остаются `LumeneraViewer.*`; новые папки = новые пространства (`LumeneraViewer.Series`).
 - Тексты интерфейса и комментарии — по-русски.
 - Камеры и драйвера на машине нет: проверка в демо-режиме и тестами. **Установщик драйверов никогда не запускать.**
-- Ручной запуск — НЕ из bin: скопировать вывод в `$env:TEMP\zs-<номер таска>` и запускать оттуда; после проверки закрыть процессы и все окна (включая окна ошибок).
+- **Требование пользователя (2026-10-08): не трогать «Документы», «Изображения» и другие папки пользователя — работать только внутри папки проекта.** Все проверочные файлы (снимки, экспорт `.zcolor`/`.zscope`, тестовые картинки, копия программы для запуска) — в `.autopilot/2026-10-08-zi-scope-iterations--wip/scratch/` (в git не попадает); в программе на время проверки папку снимков переключить туда же. Если что-то всё же оказалось вне проекта — не удалять самому, перечислить пути в отчёте.
+- Ручной запуск — НЕ из bin: скопировать вывод в `.autopilot/2026-10-08-zi-scope-iterations--wip/scratch/zs-<номер таска>` (а не в `$env:TEMP`) и запускать оттуда; после проверки закрыть процессы и все окна (включая окна ошибок).
 - Пользовательские настройки (`%AppData%\LumeneraViewer\settings.json` и, после таска 03, `%AppData%\ZI-scope\…`) — не менять и не удалять; для проверок — резервная копия и восстановление байт в байт.
 - Параллельно могут работать другие исполнители в других зонах: при блокировке файлов (MSB3026/MSB3027/CS2012) подожди 20–40 с и повтори; ошибки компиляции в чужих файлах не чини — подожди; держится > 10 мин → CONCERNS.
 - Не трогать `installer/*.exe` и `.autopilot/` (кроме `screens/`). `interfaces.md` дополняет только оркестратор по блоку INTERFACES из отчёта. Не делать git commit.
@@ -75,7 +76,7 @@ SeriesPanelViewModel SeriesPanel { get; }       // таск 06 (заглушка
 - Выбранная вкладка — `Settings.Extensions["ui.rightTab"]`.
 - **AssemblyName = ZI-scope ломает pack-URI `/LumeneraViewer;component/…`**: пиши относительные пути или `/ZI-scope;component/…`.
 
-## Из таска 04 — увеличения и профили (предварительно, до завершения таска)
+## Из таска 04 — увеличения и профили
 
 - `MainViewModel`: `int CurrentMagnification {get;set;}` (из любого потока; set = StoreLive → LoadLive → применить Adjustments/экспозицию/усиление/плашку; вне 1–10000 игнорируется) · `event Action<int>? MagnificationChanged` (UI-поток) · `IReadOnlyList<int> AvailableMagnifications` (ObservableCollection, по возрастанию) · `bool IsCurrentCalibrated` · `void AddMagnification(int)` (не переключает) · `bool RemoveMagnification(int)` · `void NotifyCalibrationChanged()` · `void ApplyColorProfile(ColorProfile)` · `void LoadConfiguration(AppSettings)` (через ReplaceSettings + SettingsReplaced) · `IRelayCommand ShowConfigProfilesCommand` · `PrimaryCaptureCommand` — CanExecute обновляется при смене `SeriesPanel.IsActive`.
 - **Цвет для текущего увеличения:** просто `host.Adjustments = adj` (например `adj with { Deep = ... }`) — в профиль сохраняется автоматически (SaveSettingsSoon/троттлинг вызывают `MagnificationSettings.StoreLive`). Явно — `MagnificationSettings.StoreLive(host.Settings)`.

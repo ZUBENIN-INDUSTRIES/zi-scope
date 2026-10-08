@@ -1,4 +1,4 @@
-using LumeneraViewer.Imaging;
+﻿using LumeneraViewer.Imaging;
 using LumeneraViewer.Settings;
 
 namespace LumeneraViewer.Tests;
@@ -93,5 +93,51 @@ public sealed class MagnificationSettingsTests
         Assert.Equal(new[] { new ObjectiveProfile("10x", 0.821), new ObjectiveProfile("40x", 0.2) },
             MagnificationSettings.LegacyCalibrations(s));
         Assert.Empty(MagnificationSettings.LegacyCalibrations(new AppSettings()));
+    }
+
+    [Fact]
+    public void Remove_RefusesCurrentAndLast_RemovesOther()
+    {
+        var s = new AppSettings();                       // ×100 (текущее), ×200
+        Assert.False(MagnificationSettings.Remove(s, 100));   // текущее
+        Assert.False(MagnificationSettings.Remove(s, 500));   // нет такого
+        Assert.True(MagnificationSettings.Remove(s, 200));
+        Assert.Equal(new[] { 100 }, s.Magnifications.Select(m => m.Magnification));
+
+        s.CurrentMagnification = 1000;                   // профиль ×100 — последний, хотя и не текущий
+        Assert.False(MagnificationSettings.Remove(s, 100));
+        Assert.Single(s.Magnifications);
+    }
+
+    [Fact]
+    public void CopyFrom_LoadedConfiguration_KeepsItsMagnificationProfiles()
+    {
+        var target = new AppSettings { Adjustments = Cold, CurrentMagnification = 200 };
+        MagnificationSettings.GetOrCreate(target, 200).MicronsPerPixel = 9;
+
+        var loaded = new AppSettings { CurrentMagnification = 500, Adjustments = Warm, ExposureMs = 33 };
+        loaded.ScaleBar.FixedMicrons = 50;
+        MagnificationSettings.GetOrCreate(loaded, 100).MicronsPerPixel = 0.8;
+        // профиля ×500 в файле нет, живые значения — его
+
+        target.CopyFrom(loaded);
+
+        Assert.Equal(500, target.CurrentMagnification);
+        Assert.Equal(Warm, target.Adjustments);
+        Assert.Equal(new[] { 100, 200, 500 }, target.Magnifications.Select(m => m.Magnification));
+        Assert.Equal(0.8, target.Magnifications[0].MicronsPerPixel);
+        Assert.Null(target.Magnifications[1].MicronsPerPixel);       // старые настройки не протекли
+        var cur = target.Magnifications[2];
+        Assert.Equal(Warm, cur.Adjustments);
+        Assert.Equal(33f, cur.ExposureMs);
+        Assert.Equal(50, cur.ScaleBarMicrons);
+
+        // переключение туда и обратно не теряет живые значения загруженного ×500
+        MagnificationSettings.StoreLive(target);
+        MagnificationSettings.LoadLive(target, 100);
+        MagnificationSettings.StoreLive(target);
+        MagnificationSettings.LoadLive(target, 500);
+        Assert.Equal(Warm, target.Adjustments);
+        Assert.Equal(50, target.ScaleBar.FixedMicrons);
     }
 }

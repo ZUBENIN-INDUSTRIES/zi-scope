@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using LumeneraViewer.Settings;
 
 namespace LumeneraViewer.Overlays;
@@ -44,12 +44,9 @@ public sealed record OverlayState
     /// <summary>Нечего рисовать (экспорт может не впечатывать пустой оверлей).</summary>
     public bool IsEmpty => !ShowsScaleBar && Measurements.Count == 0 && PendingLine is null && !Crosshair && !Grid;
 
-    /// <summary>Мкм/px текущего объектива из настроек (null — не откалиброван или профиль не найден).</summary>
+    /// <summary>Мкм/px профиля текущего увеличения (null — не откалиброван или профиля нет).</summary>
     public static double? CurrentMicronsPerPixel(AppSettings s)
-    {
-        var p = s.Objectives?.FirstOrDefault(o => o.Name == s.CurrentObjective) ?? s.Objectives?.FirstOrDefault();
-        return p?.MicronsPerPixel is > 0 and var k ? k : null;
-    }
+        => MagnificationSettings.CurrentMicronsPerPixel(s) is > 0 and var k ? k : null;
 
     /// <summary>Состояние из настроек (плашка, сетка, перекрестие, текущий объектив) и списка измерений.</summary>
     public static OverlayState FromSettings(AppSettings s, IEnumerable<Measurement>? measurements = null)

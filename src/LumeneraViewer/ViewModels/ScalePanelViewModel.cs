@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
@@ -13,7 +13,7 @@ using LumeneraViewer.UI;
 namespace LumeneraViewer.ViewModels;
 
 /// <summary>
-/// Карточка «Масштаб»: объективы, калибровка, вид плашки. Владеет событием Changed —
+/// Вкладка «Масштаб»: калибровка и длина плашки текущего увеличения, вид плашки, перенос старых калибровок. Владеет событием Changed —
 /// по нему превью перерисовывает оверлей. BuildOverlayState() — текущее состояние для экспорта.
 /// </summary>
 public partial class ScalePanelViewModel : ObservableObject
@@ -25,8 +25,6 @@ public partial class ScalePanelViewModel : ObservableObject
     /// <summary>Что-то из рисуемого поменялось (UI-поток). Подписан PreviewOverlay.</summary>
     public event Action? Changed;
 
-    public ObservableCollection<string> ObjectiveNames { get; } = new();
-
     public string[] Corners { get; } = { "Справа снизу", "Слева снизу", "Справа сверху", "Слева сверху" };
     public string[] ColorNames { get; } = { "Белый", "Чёрный", "Жёлтый" };
     public string[] UnitNames { get; } = { "мкм", "мм" };
@@ -34,19 +32,20 @@ public partial class ScalePanelViewModel : ObservableObject
     public ScalePanelViewModel(MainViewModel host)
     {
         Host = host;
-        EnsureObjectives();
-        ReloadNames();
         _manualLengthText = FormatManual();
+        ReloadLegacy();
         host.PropertyChanged += OnHostChanged;
-        host.SettingsReplaced += OnSettingsReplaced;
+        host.SettingsReplaced += Reload;
     }
 
-    /// <summary>Настройки заменены (сброс): объективы, плашка и сетка перечитываются из Settings.</summary>
-    private void OnSettingsReplaced()
+    /// <summary>
+    /// Перечитать всё из Settings: после переключения увеличения (своя калибровка и длина плашки)
+    /// и после замены настроек. Превью перерисовывается сразу.
+    /// </summary>
+    public void Reload()
     {
-        EnsureObjectives();
-        ReloadNames();
         _manualLengthText = FormatManual();
+        ReloadLegacy();
         OnPropertyChanged(string.Empty);
         RaiseChanged(save: false);
     }
@@ -54,6 +53,7 @@ public partial class ScalePanelViewModel : ObservableObject
     private void OnHostChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.ActiveTool)) OnPropertyChanged(nameof(IsCalibrating));
+        if (e.PropertyName == nameof(MainViewModel.CurrentMagnification)) OnPropertyChanged(nameof(MagnificationText));
     }
 
     /// <summary>Текущее состояние оверлея — для впечатывания в файл (вызывать в UI-потоке).</summary>
@@ -66,52 +66,18 @@ public partial class ScalePanelViewModel : ObservableObject
         Changed?.Invoke();
     }
 
-    // ───── Объективы ─────
+    // ───── Текущее увеличение ─────
 
-    private void EnsureObjectives()
-    {
-        S.Objectives ??= new();
-        if (S.Objectives.Count == 0) S.Objectives.Add(new ObjectiveProfile("Объектив 1", null));
-        if (S.Objectives.All(o => o.Name != S.CurrentObjective)) S.CurrentObjective = S.Objectives[0].Name;
-    }
-
-    private void ReloadNames()
-    {
-        ObjectiveNames.Clear();
-        foreach (var o in S.Objectives) ObjectiveNames.Add(o.Name);
-        OnPropertyChanged(nameof(SelectedObjective));
-        OnCalibrationChanged();
-    }
-
-    private ObjectiveProfile Current
-    {
-        get
-        {
-            EnsureObjectives();
-            return S.Objectives.First(o => o.Name == S.CurrentObjective);
-        }
-    }
-
-    public string? SelectedObjective
-    {
-        get => S.CurrentObjective;
-        set
-        {
-            if (value is null || value == S.CurrentObjective || S.Objectives.All(o => o.Name != value)) return;
-            S.CurrentObjective = value;
-            OnPropertyChanged();
-            OnCalibrationChanged();
-            RaiseChanged();
-        }
-    }
+    public string MagnificationText => "×" + S.CurrentMagnification.ToString(CultureInfo.InvariantCulture);
 
     public double? MicronsPerPixel => OverlayState.CurrentMicronsPerPixel(S);
     public bool IsCalibrated => MicronsPerPixel is not null;
     public string CalibrationText => MicronsPerPixel is { } k
-        ? k.ToString(k < 0.01 ? "0.00000" : "0.000", CultureInfo.InvariantCulture) + " мкм/px"
-        : "не откалиброван — откалибруйте объектив";
-    public bool CanDelete => S.Objectives.Count > 1;
+        ? FormatMpp(k) + " мкм/px"
+        : "не откалиброван — нажмите «Калибровать»";
     public bool IsCalibrating => Host.ActiveTool == PreviewTool.Calibrate;
+
+    private static string FormatMpp(double k) => k.ToString(k < 0.01 ? "0.00000" : "0.000", CultureInfo.InvariantCulture);
 
     private void OnCalibrationChanged()
     {
@@ -119,66 +85,51 @@ public partial class ScalePanelViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCalibrated));
         OnPropertyChanged(nameof(CalibrationText));
         OnPropertyChanged(nameof(ScaleBarEnabled));
-        OnPropertyChanged(nameof(CanDelete));
+        Host.NotifyCalibrationChanged();
     }
 
-    [RelayCommand]
-    private async Task AddObjective()
-    {
-        var name = await AskTextAsync("Новый объектив", "Название (например, «10×»)", NextFreeName(), "Добавить");
-        if (name is null) return;
-        if (!ValidateName(name, null)) return;
-        S.Objectives.Add(new ObjectiveProfile(name, null));
-        S.CurrentObjective = name;
-        ReloadNames();
-        RaiseChanged();
-        Host.Notify("Объектив добавлен", $"«{name}» ещё не откалиброван — нажмите «Калибровать».", NotifyKind.Info);
-    }
+    // ───── Старые калибровки объективов (история 10) ─────
 
-    [RelayCommand]
-    private async Task RenameObjective()
-    {
-        var cur = Current;
-        var name = await AskTextAsync("Переименовать объектив", "Новое название", cur.Name, "Сохранить");
-        if (name is null || name == cur.Name) return;
-        if (!ValidateName(name, cur.Name)) return;
-        S.Objectives[S.Objectives.IndexOf(cur)] = cur with { Name = name };
-        S.CurrentObjective = name;
-        ReloadNames();
-        RaiseChanged();
-    }
+    /// <summary>Не перенесённые старые калибровки; у каждой — выбор увеличения и «Перенести».</summary>
+    public ObservableCollection<LegacyCalibrationItem> LegacyCalibrations { get; } = new();
+    public bool HasLegacyCalibrations => LegacyCalibrations.Count > 0;
 
-    [RelayCommand]
-    private async Task DeleteObjective()
+    private void ReloadLegacy()
     {
-        if (S.Objectives.Count <= 1)
+        LegacyCalibrations.Clear();
+        if (!S.LegacyCalibrationDismissed)
         {
-            Host.Notify("Нельзя удалить", "Должен остаться хотя бы один объектив.", NotifyKind.Warning);
-            return;
+            // Перенесённой считается калибровка, чьё значение уже стоит в каком-то профиле увеличения.
+            var used = (S.Magnifications ?? new()).Select(m => m.MicronsPerPixel).ToHashSet();
+            foreach (var o in MagnificationSettings.LegacyCalibrations(S).Where(o => !used.Contains(o.MicronsPerPixel)))
+                LegacyCalibrations.Add(new LegacyCalibrationItem(o, Host.AvailableMagnifications.ToList(), S.CurrentMagnification));
         }
-        var cur = Current;
-        if (!await ConfirmAsync("Удалить объектив?", $"«{cur.Name}» и его калибровка будут удалены.")) return;
-        var i = S.Objectives.IndexOf(cur);
-        S.Objectives.RemoveAt(i);
-        S.CurrentObjective = S.Objectives[Math.Min(i, S.Objectives.Count - 1)].Name;
-        ReloadNames();
+        OnPropertyChanged(nameof(HasLegacyCalibrations));
+        OnPropertyChanged(nameof(LegacySummary));
+    }
+
+    public string LegacySummary => "Найдены старые калибровки: " + string.Join(", ",
+        LegacyCalibrations.Select(i => $"{i.Name} — {FormatMpp(i.MicronsPerPixel)} мкм/px"))
+        + ". Выберите, какому увеличению соответствует каждая.";
+
+    [RelayCommand]
+    private void TransferLegacy(LegacyCalibrationItem? item)
+    {
+        if (item is null) return;
+        MagnificationSettings.GetOrCreate(S, item.TargetMagnification).MicronsPerPixel = item.MicronsPerPixel;
+        Host.AddMagnification(item.TargetMagnification);   // синхронизирует список в шапке
+        ReloadLegacy();
+        OnCalibrationChanged();
         RaiseChanged();
+        Host.Notify("Калибровка перенесена", $"{item.Name} → ×{item.TargetMagnification}: {FormatMpp(item.MicronsPerPixel)} мкм/px", NotifyKind.Success);
     }
 
-    private string NextFreeName()
+    [RelayCommand]
+    private void DismissLegacy()
     {
-        for (var i = S.Objectives.Count + 1; ; i++)
-            if (S.Objectives.All(o => o.Name != $"Объектив {i}")) return $"Объектив {i}";
-    }
-
-    private bool ValidateName(string name, string? except)
-    {
-        if (S.Objectives.Any(o => o.Name == name && o.Name != except))
-        {
-            Host.Notify("Такое имя уже есть", "Выберите другое название объектива.", NotifyKind.Warning);
-            return false;
-        }
-        return true;
+        S.LegacyCalibrationDismissed = true;
+        ReloadLegacy();
+        Host.SaveSettingsSoon();
     }
 
     // ───── Калибровка ─────
@@ -202,8 +153,8 @@ public partial class ScalePanelViewModel : ObservableObject
                 Host.Notify("Слишком короткая линия", "Проведите линию по известному отрезку подлиннее.", NotifyKind.Warning);
                 return;
             }
-            // Профиль фиксируется до диалога: пока он открыт, объектив могут сменить или удалить.
-            var targetName = Current.Name;
+            // Увеличение фиксируется до диалога: пока он открыт, его могут переключить.
+            var targetMag = S.CurrentMagnification;
             var text = await AskTextAsync("Известная длина, мкм",
                 $"Длина линии {px.ToString("0.#", CultureInfo.InvariantCulture)} px. Сколько это микрометров?", "", "Сохранить");
             if (text is null) return;
@@ -213,17 +164,11 @@ public partial class ScalePanelViewModel : ObservableObject
                 return;
             }
             var k = Calibration.MicronsPerPixel(a, b, microns);
-            var i = S.Objectives.FindIndex(o => o.Name == targetName);
-            if (i < 0)
-            {
-                Host.Notify("Калибровка не сохранена", $"Объектив «{targetName}» удалён или переименован, пока шла калибровка.", NotifyKind.Warning);
-                return;
-            }
-            S.Objectives[i] = S.Objectives[i] with { MicronsPerPixel = k };
+            MagnificationSettings.GetOrCreate(S, targetMag).MicronsPerPixel = k;
+            Host.AddMagnification(targetMag);
             OnCalibrationChanged();
             RaiseChanged();
-            var shown = k.ToString(k < 0.01 ? "0.00000" : "0.000", CultureInfo.InvariantCulture);
-            Host.Notify("Объектив откалиброван", $"«{targetName}»: {shown} мкм/px", NotifyKind.Success);
+            Host.Notify("Увеличение откалибровано", $"×{targetMag}: {FormatMpp(k)} мкм/px", NotifyKind.Success);
         }
         finally
         {
@@ -334,7 +279,21 @@ public partial class ScalePanelViewModel : ObservableObject
 
     private Task<string?> AskTextAsync(string title, string prompt, string initial, string ok)
         => Dialogs.AskTextAsync(Host.Owner, title, prompt, initial, ok);
+}
 
-    private Task<bool> ConfirmAsync(string title, string message)
-        => Dialogs.ConfirmAsync(Host.Owner, title, message, "Удалить");
+/// <summary>Старая калибровка объектива и увеличение, в которое её перенести.</summary>
+public partial class LegacyCalibrationItem : ObservableObject
+{
+    public LegacyCalibrationItem(ObjectiveProfile o, IReadOnlyList<int> magnifications, int current)
+    {
+        Name = o.Name;
+        MicronsPerPixel = o.MicronsPerPixel ?? 0;
+        Magnifications = magnifications;
+        _targetMagnification = current;
+    }
+
+    public string Name { get; }
+    public double MicronsPerPixel { get; }
+    public IReadOnlyList<int> Magnifications { get; }
+    [ObservableProperty] private int _targetMagnification;
 }

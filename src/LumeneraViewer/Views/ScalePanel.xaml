@@ -1,4 +1,4 @@
-<UserControl x:Class="LumeneraViewer.Views.ScalePanel"
+﻿<UserControl x:Class="LumeneraViewer.Views.ScalePanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -15,20 +15,46 @@
         </Style>
     </UserControl.Resources>
     <StackPanel Margin="0,10,0,0">
-        <!-- Объектив -->
-        <Grid Style="{StaticResource Row}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <ComboBox ItemsSource="{Binding ObjectiveNames}" SelectedItem="{Binding SelectedObjective}" ToolTip="Текущий объектив"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0,0,0">
-                <ui:Button Icon="{ui:SymbolIcon Add24}" ToolTip="Добавить объектив" Command="{Binding AddObjectiveCommand}" Padding="8" Margin="0,0,4,0"/>
-                <ui:Button Icon="{ui:SymbolIcon Rename24}" ToolTip="Переименовать объектив" Command="{Binding RenameObjectiveCommand}" Padding="8" Margin="0,0,4,0"/>
-                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Удалить объектив (последний удалить нельзя)" Command="{Binding DeleteObjectiveCommand}"
-                           IsEnabled="{Binding CanDelete}" Padding="8"/>
+        <!-- Старые калибровки объективов: перенос в увеличения (история 10) -->
+        <Border Style="{StaticResource ZsGroup}" Margin="0,0,0,10" BorderBrush="{StaticResource Zs.Warning}" BorderThickness="1"
+                Visibility="{Binding HasLegacyCalibrations, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <ui:SymbolIcon Symbol="Info24" Foreground="{StaticResource Zs.Warning}" Margin="0,0,6,0"/>
+                    <TextBlock Text="Старые калибровки объективов" FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{Binding LegacySummary}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <ItemsControl ItemsSource="{Binding LegacyCalibrations}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource Zs.Text}"/>
+                                    <TextBlock Text="{Binding MicronsPerPixel, StringFormat={}{0:0.#####} мкм/px}" Style="{StaticResource MutedText}" FontSize="11.5"/>
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" MinWidth="86" Margin="6,0" ItemsSource="{Binding Magnifications}"
+                                          SelectedItem="{Binding TargetMagnification}" ItemStringFormat="×{0}" ToolTip="Какому увеличению соответствует"/>
+                                <ui:Button Grid.Column="2" Content="Перенести" Appearance="Secondary"
+                                           Command="{Binding DataContext.TransferLegacyCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                           CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ui:Button Content="Скрыть" Appearance="Transparent" HorizontalAlignment="Right" Command="{Binding DismissLegacyCommand}"
+                           ToolTip="Больше не показывать это уведомление"/>
             </StackPanel>
-        </Grid>
+        </Border>
+
+        <!-- Текущее увеличение -->
+        <TextBlock Style="{StaticResource ZsSectionLabel}" Margin="0,0,0,6">
+            <Run Text="Увеличение"/> <Run Text="{Binding MagnificationText, Mode=OneWay}"/>
+        </TextBlock>
 
         <!-- Калибровка -->
         <Border Style="{StaticResource ZsGroup}" Margin="0,0,0,10">
@@ -79,7 +105,7 @@
             <TextBlock Text="Плашка масштаба" Style="{StaticResource Label}" FontWeight="SemiBold"/>
             <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ScaleBarEnabled}" IsEnabled="{Binding IsCalibrated}"/>
         </Grid>
-        <TextBlock Text="Без калибровки плашка выключена: пиксели не выдаются за микроны. Откалибруйте объектив."
+        <TextBlock Text="Без калибровки плашка выключена: пиксели не выдаются за микроны. Откалибруйте это увеличение кнопкой «Калибровать»."
                    Style="{StaticResource MutedText}" Margin="0,-4,0,8"
                    Visibility="{Binding IsCalibrated, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
 

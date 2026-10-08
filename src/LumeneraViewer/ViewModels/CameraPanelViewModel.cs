@@ -30,6 +30,9 @@ public partial class CameraPanelViewModel : ObservableObject
             if (_ui.CheckAccess()) Reload();
             else _ui.BeginInvoke(Reload);
         };
+        // Автоэкспозиция относится к увеличению, на котором её запустили: иначе она допишет экспозицию в профиль нового.
+        host.MagnificationChanged += _ => InterruptAuto();
+        host.SettingsReplaced += InterruptAuto;
         host.ProcessedFrameReady += OnProcessedFrame;
         host.RawFrameReady += OnRawFrame;
         Reload();
@@ -170,12 +173,18 @@ public partial class CameraPanelViewModel : ObservableObject
         var cam = Host.Camera;
         var range = cam?.GetRange(CameraProperty.Exposure);
         if (cam is null || range is null) return;
+        var epoch = Volatile.Read(ref _autoEpoch);
         IsAutoRunning = true;
         try
         {
             var mean = await WaitMeanAsync(0);
             for (int i = 0; ; i++)
             {
+                if (Volatile.Read(ref _autoEpoch) != epoch)
+                {
+                    Host.Notify("Автоэкспозиция прервана", "Сменилось увеличение или конфигурация.", NotifyKind.Warning);
+                    return;
+                }
                 if (mean is not { } m)
                 {
                     Host.Notify("Автоэкспозиция", "Камера не присылает кадры.", NotifyKind.Warning);
@@ -202,6 +211,13 @@ public partial class CameraPanelViewModel : ObservableObject
     }
 
     private CancellationTokenSource? _autoWait;
+    private int _autoEpoch;
+
+    private void InterruptAuto()
+    {
+        Interlocked.Increment(ref _autoEpoch);
+        CancelAutoWait();
+    }
 
     private void CancelAutoWait()
     {

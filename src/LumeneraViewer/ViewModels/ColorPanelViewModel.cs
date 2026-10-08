@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,7 +11,7 @@ using LumeneraViewer.UI;
 
 namespace LumeneraViewer.ViewModels;
 
-/// <summary>Карточка «Цвет»: программная коррекция, авто-ББ, Ч/Б, негатив, пресеты.</summary>
+/// <summary>Вкладка «Цвет»: программная коррекция текущего увеличения, авто-ББ, Ч/Б, негатив, профили цвета.</summary>
 public partial class ColorPanelViewModel : ObservableObject
 {
     private bool _syncing;
@@ -21,22 +21,20 @@ public partial class ColorPanelViewModel : ObservableObject
     public ColorPanelViewModel(MainViewModel host)
     {
         Host = host;
-        Presets = new ObservableCollection<AdjustmentPreset>(host.Settings.Presets);
-        Presets.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoPresets));
+        Profiles = new ObservableCollection<ColorProfile>(host.Settings.ColorProfiles ??= new());
+        Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
         LoadFrom(host.Adjustments);
         // Коррекцию могут поменять снаружи (сброс настроек) — подтягиваем
         host.PropertyChanged += OnHostPropertyChanged;
-        host.SettingsReplaced += ReloadPresets;
+        host.SettingsReplaced += ReloadProfiles;
     }
 
-    /// <summary>Настройки заменены (сброс): пресеты перечитываются, удалённые не вернутся при сохранении.</summary>
-    private void ReloadPresets()
+    /// <summary>Настройки заменены (сброс, загрузка конфигурации): профили перечитываются.</summary>
+    private void ReloadProfiles()
     {
-        _selectingSilently = true;
-        SelectedPreset = null;
-        _selectingSilently = false;
-        Presets.Clear();
-        foreach (var p in Host.Settings.Presets ??= new()) Presets.Add(p);
+        SelectedProfile = null;
+        Profiles.Clear();
+        foreach (var p in Host.Settings.ColorProfiles ??= new()) Profiles.Add(p);
     }
 
     // Диапазоны и значения по умолчанию — спецификация, истории 17–19
@@ -58,9 +56,10 @@ public partial class ColorPanelViewModel : ObservableObject
             Host.Adjustments = Build(); // хост сам сохраняет настройки (SaveSettingsSoon)
     }
 
+    // Глубокие настройки (окно «Глубокий цвет») этой панелью не меняются — сохраняются как есть.
     private ImageAdjustments Build() => new(
         Math.Round(Brightness), Math.Round(Contrast), Math.Round(Gamma, 2), Math.Round(Saturation),
-        Math.Round(Temperature), Math.Round(Tint), Grayscale, Negative);
+        Math.Round(Temperature), Math.Round(Tint), Grayscale, Negative) { Deep = Host.Adjustments.Deep };
 
     private void OnHostPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -69,6 +68,7 @@ public partial class ColorPanelViewModel : ObservableObject
 
     private void LoadFrom(ImageAdjustments a)
     {
+        if (Host.Adjustments != a) Host.Adjustments = a;   // глубокие настройки тоже из a
         _syncing = true;
         try
         {
@@ -92,7 +92,6 @@ public partial class ColorPanelViewModel : ObservableObject
     private void ResetAll()
     {
         LoadFrom(ImageAdjustments.Default);
-        SelectedPreset = null;
     }
 
     // ───── Авто-баланс белого ─────
@@ -135,66 +134,142 @@ public partial class ColorPanelViewModel : ObservableObject
         }
     }
 
-    // ───── Пресеты ─────
+    // ───── Профили цвета (история 26) ─────
 
-    public ObservableCollection<AdjustmentPreset> Presets { get; }
-    public bool HasNoPresets => Presets.Count == 0;
+    public ObservableCollection<ColorProfile> Profiles { get; }
+    public bool HasNoProfiles => Profiles.Count == 0;
 
-    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(ApplyPresetCommand), nameof(DeletePresetCommand))]
-    private AdjustmentPreset? _selectedPreset;
+    /// <summary>Сохранять в новый профиль экспозицию и усиление камеры.</summary>
+    [ObservableProperty] private bool _includeExposure;
 
-    private bool HasSelection => SelectedPreset is not null;
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(ApplyProfileCommand), nameof(DeleteProfileCommand),
+        nameof(RenameProfileCommand), nameof(ExportProfileCommand))]
+    private ColorProfile? _selectedProfile;
+
+    private bool HasSelection => SelectedProfile is not null;
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void ApplyPreset()
+    private void ApplyProfile()
     {
-        if (SelectedPreset is not { } p) return;
-        LoadFrom(p.Adjustments ?? ImageAdjustments.Default);
-        Host.CameraPanel.ApplyExposureGain(p.ExposureMs, p.Gain);
-        Host.Notify("Пресет применён", p.Name, NotifyKind.Success);
+        if (SelectedProfile is not { } p) return;
+        Host.ApplyColorProfile(p);   // ползунки подтянутся по PropertyChanged(Adjustments)
+        Host.Notify("Профиль применён", $"«{p.Name}» → ×{Host.CurrentMagnification}", NotifyKind.Success);
     }
 
     [RelayCommand]
-    private async Task SavePreset()
+    private async Task SaveProfile()
     {
-        var name = await Dialogs.AskTextAsync(Host.Owner, "Сохранить пресет",
-            "Сохранятся коррекция цвета, экспозиция и усиление.",
-            SelectedPreset?.Name ?? $"Пресет {Presets.Count + 1}", "Сохранить",
-            "Например: «Окраска по Граму, ×40»");
+        var name = await Dialogs.AskTextAsync(Host.Owner, "Сохранить профиль цвета",
+            IncludeExposure ? "Сохранятся основные и глубокие настройки цвета, экспозиция и усиление."
+                            : "Сохранятся основные и глубокие настройки цвета.",
+            SelectedProfile?.Name ?? $"Профиль {Profiles.Count + 1}", "Сохранить", "Например: «Окраска по Граму»");
         if (name is null) return;
-        var preset = new AdjustmentPreset(name, Build(), Host.CameraPanel.CurrentExposure, Host.CameraPanel.CurrentGain);
-        var existing = Presets.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.CurrentCultureIgnoreCase));
-        if (existing is not null) Presets[Presets.IndexOf(existing)] = preset; // перезапись по имени
-        else Presets.Add(preset);
-        _selectingSilently = true;
-        SelectedPreset = preset;
-        _selectingSilently = false;
+        var profile = new ColorProfile
+        {
+            Name = name,
+            Adjustments = Host.Adjustments,
+            IncludesExposure = IncludeExposure,
+            ExposureMs = IncludeExposure ? Host.CameraPanel.CurrentExposure ?? Host.Settings.ExposureMs : null,
+            Gain = IncludeExposure ? Host.CameraPanel.CurrentGain ?? Host.Settings.Gain : null,
+        };
+        var existing = FindByName(name);
+        if (existing is not null)
+        {
+            if (!await Dialogs.ConfirmAsync(Host.Owner, "Заменить профиль?",
+                    $"Профиль «{name}» уже есть. Заменить его текущими настройками?", "Заменить")) return;
+            Profiles[Profiles.IndexOf(existing)] = profile;
+        }
+        else Profiles.Add(profile);
+        SelectedProfile = profile;
         Persist();
-        Host.Notify("Пресет сохранён", name, NotifyKind.Success);
+        Host.Notify("Профиль сохранён", name, NotifyKind.Success);
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
-    private async Task DeletePreset()
+    private async Task RenameProfile()
     {
-        if (SelectedPreset is not { } p) return;
-        if (!await Dialogs.ConfirmAsync(Host.Owner, "Удалить пресет?",
-                $"Пресет «{p.Name}» будет удалён без возможности восстановления.", "Удалить")) return;
-        Presets.Remove(p);
-        SelectedPreset = null;
+        if (SelectedProfile is not { } p) return;
+        var name = await Dialogs.AskTextAsync(Host.Owner, "Переименовать профиль", "Новое название", p.Name, "Сохранить");
+        if (name is null || name == p.Name) return;
+        if (FindByName(name) is { } other && !ReferenceEquals(other, p))
+        {
+            Host.Notify("Такое имя уже есть", "Выберите другое название профиля.", NotifyKind.Warning);
+            return;
+        }
+        var i = Profiles.IndexOf(p);
+        var renamed = new ColorProfile
+        {
+            Name = name, Adjustments = p.Adjustments, IncludesExposure = p.IncludesExposure, ExposureMs = p.ExposureMs, Gain = p.Gain,
+        };
+        Profiles[i] = renamed;   // новый объект — список обновит подпись
+        SelectedProfile = renamed;
         Persist();
     }
 
-    private bool _selectingSilently;
-
-    /// <summary>Выбор в списке сразу применяет пресет.</summary>
-    partial void OnSelectedPresetChanged(AdjustmentPreset? value)
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task DeleteProfile()
     {
-        if (value is not null && !_selectingSilently) ApplyPreset();
+        if (SelectedProfile is not { } p) return;
+        if (!await Dialogs.ConfirmAsync(Host.Owner, "Удалить профиль?",
+                $"Профиль цвета «{p.Name}» будет удалён без возможности восстановления.", "Удалить")) return;
+        Profiles.Remove(p);
+        SelectedProfile = null;
+        Persist();
     }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void ExportProfile()
+    {
+        if (SelectedProfile is not { } p) return;
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Экспорт профиля цвета",
+            Filter = ProfileFileFilters.Color,
+            DefaultExt = ProfileFiles.ColorExtension,
+            FileName = ProfileFileFilters.SafeName(p.Name),
+        };
+        if (dlg.ShowDialog(Host.Owner) != true) return;
+        try
+        {
+            ProfileFiles.WriteColor(dlg.FileName, p);
+            Host.Notify("Профиль экспортирован", dlg.FileName, NotifyKind.Success);
+        }
+        catch (Exception ex)
+        {
+            Host.Notify("Не удалось экспортировать профиль", ProfileFileFilters.Describe(ex), NotifyKind.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportProfile()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Импорт профиля цвета", Filter = ProfileFileFilters.Color };
+        if (dlg.ShowDialog(Host.Owner) != true) return;
+        ColorProfile p;
+        try
+        {
+            p = ProfileFiles.ReadColor(dlg.FileName);
+        }
+        catch (Exception ex)
+        {
+            await Dialogs.InfoAsync(Host.Owner, "Профиль не импортирован", ProfileFileFilters.Describe(ex), "Настройки не изменились.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(p.Name)) p.Name = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+        var baseName = p.Name;
+        for (var i = 2; FindByName(p.Name) is not null; i++) p.Name = $"{baseName} ({i})";
+        Profiles.Add(p);
+        SelectedProfile = p;
+        Persist();
+        Host.Notify("Профиль импортирован", $"«{p.Name}» — нажмите «Применить», чтобы использовать.", NotifyKind.Success);
+    }
+
+    private ColorProfile? FindByName(string name)
+        => Profiles.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.CurrentCultureIgnoreCase));
 
     private void Persist()
     {
-        Host.Settings.Presets = Presets.ToList();
+        Host.Settings.ColorProfiles = Profiles.ToList();
         Host.SaveSettingsSoon();
     }
 }

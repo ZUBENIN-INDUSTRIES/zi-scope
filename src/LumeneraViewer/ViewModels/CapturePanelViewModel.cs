@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
@@ -199,7 +199,7 @@ public partial class CapturePanelViewModel : ObservableObject
         return new CaptureMetadata(
             time, info?.Model, info?.Serial, info?.IsSimulated ?? false,
             Host.CameraPanel.CurrentExposure, Host.CameraPanel.CurrentGain, Host.Adjustments,
-            Host.Settings.CurrentObjective, OverlayState.CurrentMicronsPerPixel(Host.Settings));
+            "×" + Host.CurrentMagnification, OverlayState.CurrentMicronsPerPixel(Host.Settings));
     }
 
     private static string Describe(Exception ex) => ex switch
