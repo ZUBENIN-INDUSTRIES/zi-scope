@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T18:44:04+05:00",
+  "updatedAt": "2026-10-08T23:38:40+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -50,13 +50,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-08T13:44:07+05:00",
-      "note": "4 из 8 тасков готовы; волна 3 (05, 06, 07) в полёте"
+      "note": "7 из 8 тасков готовы; 08 (Gemini + меню слева) в полёте"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-08T13:53:09+05:00",
-      "note": "проверено 4 из 8"
+      "note": "проверено 7 из 8"
     },
     {
       "id": "final",
@@ -224,11 +224,20 @@ window.STATE =
         "DeepColorWindow",
         "ToneCurveEditor"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 1,
       "handoffs": 0,
-      "startedAt": "2026-10-08T18:44:04+05:00"
+      "startedAt": "2026-10-08T18:44:04+05:00",
+      "repairFindings": [
+        "решение оркестратора: позиция окна и последнее изменение теряются при выходе; изменение <33 мс до смены увеличения отбрасывается; кисти в OnRender; цвета каналов в Palette; тесты CurveEditing"
+      ],
+      "commit": "45a90d7",
+      "finishedAt": "2026-10-08T23:24:32+05:00",
+      "tests": {
+        "passed": 281,
+        "failed": 0
+      }
     },
     {
       "id": "06",
@@ -257,11 +266,20 @@ window.STATE =
         "Series UI",
         "SeriesMap"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 2,
       "handoffs": 0,
-      "startedAt": "2026-10-08T18:44:04+05:00"
+      "startedAt": "2026-10-08T18:44:04+05:00",
+      "repairFindings": [
+        "решение оркестратора: откат частичной записи шага; лишний вид при пересъёмке без масштаба; Ctrl+Z во время съёмки/диалога; оверлей вместе с кадром; точные Persist в тестах"
+      ],
+      "commit": "d44b4af",
+      "finishedAt": "2026-10-08T23:37:32+05:00",
+      "tests": {
+        "passed": 286,
+        "failed": 0
+      }
     },
     {
       "id": "07",
@@ -285,11 +303,17 @@ window.STATE =
         "OverlayRenderer (сетка)",
         "csproj TFM"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
-      "repairs": 0,
-      "handoffs": 0,
-      "startedAt": "2026-10-08T18:44:04+05:00"
+      "repairs": 1,
+      "handoffs": 1,
+      "startedAt": "2026-10-08T18:44:04+05:00",
+      "commit": "56ddaf9",
+      "finishedAt": "2026-10-08T23:38:40+05:00",
+      "tests": {
+        "passed": 290,
+        "failed": 0
+      }
     },
     {
       "id": "08",
@@ -308,15 +332,16 @@ window.STATE =
         "UI/Effects/",
         "MainWindow (раскладка)"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-08T23:38:40+05:00"
     }
   ],
   "singlePass": null,
   "tests": {
-    "passed": 197,
+    "passed": 290,
     "failed": 0
   },
   "debt": {
@@ -354,7 +379,15 @@ window.STATE =
     "Ревью 04: ScalePanel.Reload вызывается дважды (ApplyLive + SettingsReplaced); лишний StoreLive в ConfigProfilesViewModel.SaveCurrent",
     "Ревью 04: перенос старой калибровки — только в увеличения, у которых уже есть профиль; «перенесено» определяется по совпадению мкм/px",
     "Ревью 04: метаданные снимка — поле Objective теперь «×200»; в уведомлении «мкм/ px» переносится",
-    "Исполнитель 04 оставил вне проекта: %AppData%\\ZI-scope\\profiles\\Конфигурация 1.zscope, %TEMP%\\zs-04\\, %TEMP%\\zs-04-backup\\ — решение за пользователем"
+    "Исполнитель 04 оставил вне проекта: %AppData%\\ZI-scope\\profiles\\Конфигурация 1.zscope, %TEMP%\\zs-04\\, %TEMP%\\zs-04-backup\\ — решение за пользователем",
+    "Ревью 05: дорожки HSL голубой/фиолетовый/пурпурный — цвета сектора оттенка (не акцент), сказать пользователю",
+    "Ревью 05: окно глубоких настроек при первом открытии частично закрывает превью; гистограмма — после коррекции",
+    "Параллельные ручные проверки с бэкапом/восстановлением одного settings.json конфликтуют — в будущих волнах ручной запуск сериализовать или давать программе путь настроек в scratch",
+    "Ревью 05 (повтор): при LoadConfiguration/ResetSettings несброшенная (<33 мс) правка DeepColor пишется в профиль загруженной конфигурации (DeepColorViewModel.cs:218-248)",
+    "Таск 08: HistogramView RGB и Palette.HslSectors — ссылаться на Palette.Channel*/Error/Success/Cyan/Accent, не дублировать значения",
+    "Ревью 06 (3-й проход): неудачный откат из .zs-new\\old проглатывается; откат только для IO/UnauthorizedAccess; нет теста на UnauthorizedAccess",
+    "Ревью 07: калибровка по снимку пересчитывается к текущей ширине кадра, не сенсора — при смене разрешения мкм/px неверен (сказать пользователю)",
+    "Вне автопилота (по просьбе пользователя): уведомления — журнал в отдельном окне + колокольчик; ключ --settings для проверок без %AppData%"
   ],
   "reviewers": {
     "manifestSpec": "a5b01cc46c7d842fd",
@@ -366,6 +399,8 @@ window.STATE =
     "reviewers": "manifestSpec a5b01cc46c7d842fd, craft a37291edf1fbf8844 (если не отвечают — новые)",
     "userSettingsNote": "в %AppData%\\LumeneraViewer\\settings.json тестовые данные (PreferDemo, 10x 0.821) — пользователь не решил удалять; не трогать",
     "projectOnly": "требование пользователя: проверочные файлы только в папке проекта (.autopilot/<прогон>/scratch/), Документы не трогать",
-    "wave3": "агенты: 05 a02e607afd313e7a0, 06 a4854d2c3a5782d3c, 07 a045fef1f94cabaf0"
+    "wave3": "05 45a90d7, 06 d44b4af, 07 56ddaf9, уведомления 7a081a7. 08 в полёте",
+    "settingsRestore": "ВАЖНО: эталон настроек пользователя — .autopilot/2026-10-08-zi-scope-iterations--wip/scratch/backup/zi.json (снят до волны 3, без агентов). Параллельные исполнители перемешали бэкапы: текущий %AppData%\\ZI-scope\\settings.json отличается. Когда никто не запускает программу — восстановить из эталона и сверить SHA-256.",
+    "wave4": "08 агент ad5d3e5ca3590305e (Gemini, меню слева, + «Снять шаг», плашка на превью, уведомления в палитре). Проверки — только с --settings в scratch"
   }
 }
