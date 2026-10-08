@@ -20,8 +20,7 @@ public partial class MainWindow : FluentWindow
     public MainWindow()
     {
         InitializeComponent();
-        _vm = new MainViewModel(this, new SettingsStore());
-        _vm.AttachSnackbar(SnackbarPresenter);
+        _vm = new MainViewModel(this, new SettingsStore(App.SettingsPathOverride));
         DataContext = _vm;
 
         var w = _vm.Settings.Window;
@@ -37,6 +36,7 @@ public partial class MainWindow : FluentWindow
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         SelectTab(ReadSavedTab(), animate: false);
+        Views.NotificationsWindow.RestoreIfWasOpen(_vm);
         _vm.SettingsReplaced += () => Dispatcher.BeginInvoke(() => SelectTab(ReadSavedTab(), animate: false));
         _vm.SeriesPanel.PropertyChanged += (_, a) =>
         {

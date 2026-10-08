@@ -90,6 +90,31 @@
                     <ui:Button Icon="{ui:SymbolIcon ZoomFit24}" Content="Вписать" ToolTip="Вписать (Ctrl+0, двойной клик)" Click="Fit_Click" Margin="0,0,6,0" Focusable="False"/>
                     <ui:Button Content="1:1" ToolTip="Пиксель в пиксель (Ctrl+1)" Click="ActualPixels_Click" Margin="0,0,6,0" Focusable="False"/>
                     <ui:Button Icon="{ui:SymbolIcon PanelRight24}" ToolTip="Панель (Tab)" Command="{Binding TogglePanelCommand}" Margin="0,0,6,0" Focusable="False"/>
+                    <!-- Уведомления: журнал в отдельном окне, здесь только значок с числом непрочитанных -->
+                    <ui:Button ToolTip="Уведомления" AutomationProperties.Name="Уведомления" Command="{Binding ShowNotificationsCommand}" Margin="0,0,6,0" Padding="9,5" Focusable="False">
+                        <Grid>
+                            <ui:SymbolIcon Symbol="Alert24" FontSize="16"/>
+                            <Border Visibility="{Binding Notifications.HasUnread, Converter={StaticResource BoolToVis}}"
+                                    MinWidth="15" Height="15" CornerRadius="7.5" Padding="3,0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-9,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{StaticResource Zs.Accent}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Notifications.UnreadSeverity}" Value="Warning">
+                                                <Setter Property="Background" Value="{StaticResource Zs.Warning}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Notifications.UnreadSeverity}" Value="Error">
+                                                <Setter Property="Background" Value="{StaticResource Zs.Error}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding Notifications.UnreadCount}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Zs.Window}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                    </ui:Button>
                     <ui:Button x:Name="MoreButton" Icon="{ui:SymbolIcon MoreHorizontal24}" ToolTip="Ещё" Click="More_Click" Focusable="False">
                         <ui:Button.ContextMenu>
                             <ContextMenu>
@@ -98,6 +123,9 @@
                                 </MenuItem>
                                 <MenuItem Header="Глубокие настройки цвета…" Command="{x:Static v:DeepColorWindow.OpenCommand}" CommandParameter="{Binding}">
                                     <MenuItem.Icon><ui:SymbolIcon Symbol="ColorLine24"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Уведомления…" Command="{Binding ShowNotificationsCommand}">
+                                    <MenuItem.Icon><ui:SymbolIcon Symbol="Alert24"/></MenuItem.Icon>
                                 </MenuItem>
                                 <MenuItem Header="Профили конфигурации…" Command="{Binding ShowConfigProfilesCommand}">
                                     <MenuItem.Icon><ui:SymbolIcon Symbol="DocumentSettings20"/></MenuItem.Icon>
@@ -287,7 +315,6 @@
             </Grid>
         </Grid>
 
-        <ui:SnackbarPresenter x:Name="SnackbarPresenter" VerticalAlignment="Bottom" Margin="0,0,0,24"/>
         <ui:ContentDialogHost/>
     </Grid>
 </ui:FluentWindow>

@@ -1,0 +1,89 @@
+<ui:FluentWindow x:Class="LumeneraViewer.Views.NotificationsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="Уведомления"
+                 Width="380" Height="420" MinWidth="300" MinHeight="200"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="None"
+                 WindowCornerPreference="Round"
+                 WindowStartupLocation="Manual"
+                 ShowInTaskbar="False"
+                 ShowActivated="False"
+                 Background="{StaticResource Zs.Window}"
+                 Foreground="{StaticResource Zs.Text}"
+                 FontFamily="{StaticResource Zs.Font}"
+                 FontSize="12.5">
+    <!-- DataContext — NotificationLog -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Height="34" ShowMinimize="False" ShowMaximize="False">
+            <ui:TitleBar.Header>
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <ui:SymbolIcon Symbol="Alert24" FontSize="14" Foreground="{StaticResource Zs.TextSecondary}" Margin="0,0,8,0"/>
+                    <TextBlock Text="Уведомления" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <ui:Button Content="Очистить" Command="{Binding ClearCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Padding="8,1" FontSize="11.5" Margin="12,0,0,0" VerticalAlignment="Center"
+                               WindowChrome.IsHitTestVisibleInChrome="True"/>
+                </StackPanel>
+            </ui:TitleBar.Header>
+        </ui:TitleBar>
+
+        <TextBlock Grid.Row="1" Text="Пока ничего не произошло." HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Items.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10,0,10,10">
+            <ItemsControl ItemsSource="{Binding Items}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,0,0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.ColumnSpan="3" Background="{StaticResource Zs.Panel}" CornerRadius="{StaticResource Zs.RadiusControl}"/>
+                            <ui:SymbolIcon x:Name="Icon" Symbol="Info24" FontSize="14" Margin="10,9,8,0" VerticalAlignment="Top"
+                                           Foreground="{StaticResource Zs.TextSecondary}"/>
+                            <StackPanel Grid.Column="1" Margin="0,7,0,7">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource Zs.Text}"/>
+                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,2,0,0" Foreground="{StaticResource Zs.TextSecondary}"
+                                           Visibility="{Binding HasMessage, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding TimeText}" FontSize="11" Margin="8,8,10,0" VerticalAlignment="Top"
+                                       Foreground="{StaticResource Zs.TextDisabled}"/>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Kind}" Value="Success">
+                                <Setter TargetName="Icon" Property="Symbol" Value="CheckmarkCircle24"/>
+                                <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Zs.Success}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="Warning">
+                                <Setter TargetName="Icon" Property="Symbol" Value="Warning24"/>
+                                <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Zs.Warning}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="Error">
+                                <Setter TargetName="Icon" Property="Symbol" Value="ErrorCircle24"/>
+                                <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Zs.Error}"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</ui:FluentWindow>

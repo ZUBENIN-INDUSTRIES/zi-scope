@@ -40,7 +40,6 @@ public partial class MainViewModel : ObservableObject
     private readonly FrameBufferPool _pool = new();
     private readonly DispatcherTimer _saveTimer;
     private readonly SaveThrottle _saveThrottle;
-    private SnackbarPresenter? _snackbar;
 
     private ICamera? _camera;
     private IDisposable? _cameraSubscription;
@@ -123,6 +122,29 @@ public partial class MainViewModel : ObservableObject
         // Любое изменение живых значений сразу попадает в профиль текущего увеличения.
         MagnificationSettings.StoreLive(Settings);
         if (_saveThrottle.Request()) _saveTimer.Start();
+    }
+
+    /// <summary>
+    /// Записать настройки на диск немедленно (UI-поток) — для того, что нельзя потерять (калибровка).
+    /// Ошибка записи → уведомление и false.
+    /// </summary>
+    public bool SaveSettingsNow()
+    {
+        // Уже взведённый троттл снимаем: всё несохранённое уходит в эту запись, а не второй записью через секунду.
+        _saveTimer.Stop();
+        _saveThrottle.Flush();
+        MagnificationSettings.StoreLive(Settings);
+        try
+        {
+            _store.ScheduleSave(Settings);
+            _store.Flush();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Notify("Настройки не сохранены", ex.Message, NotifyKind.Error);
+            return false;
+        }
     }
 
     /// <summary>
@@ -305,35 +327,17 @@ public partial class MainViewModel : ObservableObject
         _ => "Подключите INFINITY 4 по USB — программа найдёт её сама (опрос раз в 3 с).",
     };
 
-    public void AttachSnackbar(SnackbarPresenter presenter) => _snackbar = presenter;
+    /// <summary>Журнал уведомлений (вместо всплывающих сообщений): окно «Уведомления», значок в шапке.</summary>
+    public NotificationLog Notifications { get; } = new();
 
-    /// <summary>Всплывающее уведомление (Snackbar). Можно звать из любого потока.</summary>
+    /// <summary>Записать уведомление в журнал. Можно звать из любого потока.</summary>
     public void Notify(string title, string message, NotifyKind kind = NotifyKind.Info)
     {
         if (!_ui.CheckAccess()) { _ui.BeginInvoke(() => Notify(title, message, kind)); return; }
-        if (_snackbar is null) return;
-        var sb = new Snackbar(_snackbar)
-        {
-            Title = title,
-            Content = message,
-            Appearance = kind switch
-            {
-                NotifyKind.Success => ControlAppearance.Success,
-                NotifyKind.Warning => ControlAppearance.Caution,
-                NotifyKind.Error => ControlAppearance.Danger,
-                _ => ControlAppearance.Secondary,
-            },
-            Icon = new SymbolIcon(kind switch
-            {
-                NotifyKind.Success => SymbolRegular.CheckmarkCircle24,
-                NotifyKind.Warning => SymbolRegular.Warning24,
-                NotifyKind.Error => SymbolRegular.ErrorCircle24,
-                _ => SymbolRegular.Info24,
-            }),
-            Timeout = TimeSpan.FromSeconds(kind == NotifyKind.Error ? 6 : 3.5),
-        };
-        _ = sb.ShowAsync();
+        Notifications.Add(new NotificationItem(DateTime.Now, title, message ?? "", kind));
     }
+
+    [RelayCommand] private void ShowNotifications() => NotificationsWindow.ShowFor(this);
 
     // ───── Жизненный цикл камеры ─────
 
