@@ -84,7 +84,8 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(new ImageAdjustments(10, -20, 1.5, 80, 30, -5, true, true), b.Adjustments);
         Assert.Equal(42.5f, b.ExposureMs);
         Assert.Equal(2.25f, b.Gain);
-        var p = Assert.Single(b.Presets);
+        Assert.Empty(b.Presets);                         // пресеты при загрузке переносятся в профили цвета
+        var p = Assert.Single(b.ColorProfiles);
         Assert.Equal("Окраска", p.Name);
         Assert.Equal(15, p.Adjustments.Contrast);
         Assert.Equal(12f, p.ExposureMs);

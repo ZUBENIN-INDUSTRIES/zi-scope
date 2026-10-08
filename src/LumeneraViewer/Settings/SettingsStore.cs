@@ -23,29 +23,75 @@ public sealed class SettingsStore : IDisposable
     private string? _pendingJson;
     private bool _disposed;
 
-    public SettingsStore(string? path = null)
+    /// <summary>Папка данных программы: %AppData%\ZI-scope.</summary>
+    public static string AppDataFolder { get; } = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZI-scope");
+
+    /// <param name="path">Файл настроек; null — %AppData%\ZI-scope\settings.json.</param>
+    /// <param name="legacyPath">Старый файл, который копируется, если <paramref name="path"/> нет;
+    /// при path = null — %AppData%\LumeneraViewer\settings.json.</param>
+    public SettingsStore(string? path = null, string? legacyPath = null)
     {
-        Path = path ?? System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LumeneraViewer", "settings.json");
+        Path = path ?? System.IO.Path.Combine(AppDataFolder, "settings.json");
+        LegacyPath = legacyPath ?? (path is null
+            ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LumeneraViewer", "settings.json")
+            : null);
         _timer = new Timer(_ => FlushSafe());   // исключение из потока пула уронило бы процесс
     }
 
     public string Path { get; }
 
+    /// <summary>Файл настроек LumeneraViewer для однократной миграции; null — без миграции.</summary>
+    public string? LegacyPath { get; }
+
     public AppSettings Load()
     {
+        var migrated = MigrateLegacyFile();
         if (!File.Exists(Path)) return new AppSettings();
         try
         {
-            var json = File.ReadAllText(Path);
-            var s = JsonSerializer.Deserialize<AppSettings>(json, Options);
-            return s is null ? new AppSettings() : Repair(s);
+            return Parse(File.ReadAllText(Path)) ?? new AppSettings();
         }
-        catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             try { File.Move(Path, Path + ".bak", overwrite: true); } catch (IOException) { }
-            return new AppSettings();
+            var defaults = new AppSettings();
+            // Битая копия старого файла: записать умолчания, иначе следующий запуск снова скопирует
+            // старый файл и затрёт .bak
+            if (migrated)
+            {
+                try { Save(defaults); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+            }
+            return defaults;
         }
+    }
+
+    /// <summary>Нового файла нет, а старый (LumeneraViewer) есть — скопировать; старый не трогается. true — скопирован.</summary>
+    private bool MigrateLegacyFile()
+    {
+        if (LegacyPath is null || File.Exists(Path) || !File.Exists(LegacyPath)) return false;
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+            File.Copy(LegacyPath, Path, overwrite: false);
+            return true;
+        }
+        catch (IOException) { return false; /* не удалось — начнём с умолчаний, старый файл цел */ }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    internal static JsonSerializerOptions JsonOptions => Options;
+
+    /// <summary>JSON настроек → AppSettings с починкой null и однократными миграциями; null — в JSON не объект.</summary>
+    internal static AppSettings? Parse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+        var s = doc.RootElement.Deserialize<AppSettings>(Options);
+        if (s is null) return null;
+        var hasMagnifications = doc.RootElement.TryGetProperty(nameof(AppSettings.Magnifications), out _);
+        return Migrate(Repair(s), hasMagnifications);
     }
 
     public void Save(AppSettings s) => WriteJson(JsonSerializer.Serialize(s, Options));
@@ -110,7 +156,7 @@ public sealed class SettingsStore : IDisposable
     }
 
     // null из JSON («"Camera": null») заменяется значениями по умолчанию
-    private static AppSettings Repair(AppSettings s)
+    internal static AppSettings Repair(AppSettings s)
     {
         s.Camera ??= new();
         s.Adjustments ??= Imaging.ImageAdjustments.Default;
@@ -124,6 +170,73 @@ public sealed class SettingsStore : IDisposable
         s.Timelapse ??= new();
         s.Window ??= new();
         s.Extensions ??= new();
+
+        s.ColorProfiles ??= new();
+        s.ColorProfiles.RemoveAll(p => p is null);
+        foreach (var p in s.ColorProfiles)
+        {
+            p.Name ??= "";
+            p.Adjustments ??= Imaging.ImageAdjustments.Default;
+        }
+        s.SeriesDefaults ??= new();
+        var d = s.SeriesDefaults;
+        if (d.Magnifications is null || d.Magnifications.Count == 0) d.Magnifications = new() { 100, 200 };
+        if (d.Kinds is null || d.Kinds.Count == 0) d.Kinds = Series.SeriesPlan.DefaultKinds.ToList();
+        d.FileNameTemplate ??= Series.SeriesPlan.DefaultTemplate;
+
+        s.Magnifications ??= AppSettings.DefaultMagnifications();
+        s.Magnifications.RemoveAll(m => m is null || m.Magnification <= 0);
+        if (s.Magnifications.Count == 0) s.Magnifications = AppSettings.DefaultMagnifications();
+        foreach (var m in s.Magnifications) m.Adjustments ??= Imaging.ImageAdjustments.Default;
+        s.Magnifications = s.Magnifications.GroupBy(m => m.Magnification).Select(g => g.First())
+            .OrderBy(m => m.Magnification).ToList();
+        if (s.CurrentMagnification <= 0) s.CurrentMagnification = s.Magnifications[0].Magnification;
+        MagnificationSettings.GetOrCreate(s, s.CurrentMagnification);
+        return s;
+    }
+
+    private static string UniqueProfileName(List<ColorProfile> existing, string name)
+    {
+        bool Taken(string n) => existing.Any(c => string.Equals(c.Name, n, StringComparison.CurrentCultureIgnoreCase));
+        if (!Taken(name)) return name;
+        for (var i = 2; ; i++)
+        {
+            var candidate = $"{name} ({i})";
+            if (!Taken(candidate)) return candidate;
+        }
+    }
+
+    private static AppSettings Migrate(AppSettings s, bool hasMagnifications)
+    {
+        // Настройки до ZI-scope: живой цвет и экспозиция становятся профилем текущего увеличения.
+        // Длина плашки и калибровка объектива автоматически не переносятся (соответствие знает только пользователь).
+        if (!hasMagnifications)
+        {
+            var p = MagnificationSettings.GetOrCreate(s, s.CurrentMagnification);
+            p.Adjustments = s.Adjustments;
+            p.ExposureMs = s.ExposureMs;
+            p.Gain = s.Gain;
+            s.ScaleBar.FixedMicrons = p.ScaleBarMicrons;
+        }
+
+        // Старые пресеты → профили цвета, один раз (Presets очищается). Совпавшее имя (без учёта регистра)
+        // получает суффикс « (2)», « (3)» … — пресет не теряется.
+        if (s.Presets.Count > 0)
+        {
+            foreach (var pr in s.Presets)
+            {
+                if (pr is null) continue;
+                s.ColorProfiles.Add(new ColorProfile
+                {
+                    Name = UniqueProfileName(s.ColorProfiles, pr.Name ?? ""),
+                    Adjustments = pr.Adjustments ?? Imaging.ImageAdjustments.Default,
+                    IncludesExposure = pr.ExposureMs is not null || pr.Gain is not null,
+                    ExposureMs = pr.ExposureMs,
+                    Gain = pr.Gain,
+                });
+            }
+            s.Presets.Clear();
+        }
         return s;
     }
 }

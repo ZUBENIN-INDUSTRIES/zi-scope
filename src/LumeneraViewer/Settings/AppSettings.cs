@@ -20,6 +20,22 @@ public sealed class AppSettings
     public TimelapseSettings Timelapse { get; set; } = new();
     public WindowSettings Window { get; set; } = new();
     public Dictionary<string, JsonElement> Extensions { get; set; } = new(); // для будущих узких функций (R04)
+
+    // --- ZI-scope ---
+    /// <summary>Текущее увеличение; живые Adjustments/ExposureMs/Gain/ScaleBar.FixedMicrons относятся к нему.</summary>
+    public int CurrentMagnification { get; set; } = 100;
+    public List<MagnificationProfile> Magnifications { get; set; } = DefaultMagnifications();
+    public List<ColorProfile> ColorProfiles { get; set; } = new();
+    public SeriesDefaults SeriesDefaults { get; set; } = new();
+    public string? LastSeriesFolder { get; set; }
+    /// <summary>Пользователь скрыл уведомление о старых калибровках объективов.</summary>
+    public bool LegacyCalibrationDismissed { get; set; }
+
+    internal static List<MagnificationProfile> DefaultMagnifications() => new()
+    {
+        new MagnificationProfile { Magnification = 100 },
+        new MagnificationProfile { Magnification = 200 },
+    };
 }
 
 public sealed class CameraSettings
@@ -66,7 +82,7 @@ public sealed class GuideSettings
 public sealed class ExportSettings
 {
     public string Folder { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "LumeneraCaptures");
+        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ZI-scope");
     public ImageFormatKind Format { get; set; } = ImageFormatKind.Png;
     public int JpegQuality { get; set; } = 95;
     public bool TiffLzw { get; set; }

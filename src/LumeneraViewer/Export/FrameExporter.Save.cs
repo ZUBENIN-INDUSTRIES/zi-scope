@@ -45,6 +45,49 @@ public sealed partial class FrameExporter : IDisposable
         return _worker.Run(() => Save(processed, burn, meta, opt, seriesIndex));
     }
 
+    /// <summary>
+    /// Сохранить кадр ровно в <paramref name="fullPath"/> (для серии): без суффиксов «_2» и без копии «_clean».
+    /// Непустой <paramref name="overlays"/> впечатывается всегда — оформление решает вызывающий
+    /// (BurnOverlays и AlsoSaveClean не учитываются); формат, качество и метаданные — из <paramref name="o"/>.
+    /// Файл есть и <paramref name="overwrite"/> = false — <see cref="IOException"/> из задачи, файл не тронут.
+    /// <paramref name="extraMetadata"/> попадает в поле «Extra» файла .json.
+    /// </summary>
+    public Task<string> SaveExactAsync(CameraFrame processed, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
+        string fullPath, bool overwrite, IReadOnlyDictionary<string, string>? extraMetadata = null)
+    {
+        ArgumentNullException.ThrowIfNull(processed);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fullPath);
+        var opt = new ExportSettings
+        {
+            Folder = Path.GetDirectoryName(Path.GetFullPath(fullPath))!, Format = o.Format,
+            JpegQuality = Math.Clamp(o.JpegQuality, 1, 100), TiffLzw = o.TiffLzw,
+            BurnOverlays = true, AlsoSaveClean = false, WriteMetadata = o.WriteMetadata, Prefix = o.Prefix,
+        };
+        var path = Path.GetFullPath(fullPath);
+        var extra = extraMetadata is null ? null : new Dictionary<string, string>(extraMetadata);
+        var burn = overlays is { IsEmpty: false } ? overlays with { PendingLine = null } : null;
+        return _worker.Run(() => SaveExact(processed, burn, meta, opt, path, overwrite, extra));
+    }
+
+    private static string SaveExact(CameraFrame f, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
+        string path, bool overwrite, IReadOnlyDictionary<string, string>? extra)
+    {
+        if (!overwrite && File.Exists(path)) throw new IOException($"Файл уже существует: {path}");
+        Directory.CreateDirectory(o.Folder);
+
+        var clean = ToBitmap(f);
+        var img = overlays is null ? clean : Burn(clean, overlays, f.Width, f.Height);
+        var enc = CreateEncoder(o);
+        enc.Frames.Add(BitmapFrame.Create(img));
+        WriteAtomic(path, enc.Save, overwrite);
+        var json = Path.ChangeExtension(path, ".json");
+        if (o.WriteMetadata)
+            WriteMetadata(json, Path.GetFileName(path), meta, f, o, overlays is not null, null, extra);
+        else if (overwrite && File.Exists(json))
+            File.Delete(json);   // метаданные прежнего снимка к новому файлу не относятся
+        return path;
+    }
+
     private static string Save(CameraFrame f, OverlayState? overlays, CaptureMetadata meta, ExportSettings o, int? seriesIndex)
     {
         if (string.IsNullOrWhiteSpace(o.Folder)) throw new IOException("Не задана папка для сохранения.");
@@ -110,7 +153,7 @@ public sealed partial class FrameExporter : IDisposable
     }
 
     /// <summary>Запись во временный файл и переименование — частичных файлов не остаётся.</summary>
-    private static void WriteAtomic(string path, Action<Stream> write)
+    private static void WriteAtomic(string path, Action<Stream> write, bool overwrite = true)
     {
         var tmp = path + ".tmp";
         try
@@ -120,7 +163,7 @@ public sealed partial class FrameExporter : IDisposable
                 write(fs);
                 fs.Flush(true);
             }
-            File.Move(tmp, path, overwrite: true);
+            File.Move(tmp, path, overwrite);   // overwrite = false и файл появился — IOException
         }
         catch
         {
@@ -129,19 +172,21 @@ public sealed partial class FrameExporter : IDisposable
         }
     }
 
-    private static void WriteMetadata(string path, string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned, int? seriesIndex)
+    private static void WriteMetadata(string path, string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned, int? seriesIndex,
+        IReadOnlyDictionary<string, string>? extra = null)
     {
         var dto = new MetadataFile(
             m.Time, imageName, o.Format, f.Width, f.Height,
             m.CameraModel, m.CameraSerial, m.IsSimulated, m.ExposureMs, m.Gain, m.Adjustments,
-            m.Objective, m.MicronsPerPixel, overlaysBurned, seriesIndex);
+            m.Objective, m.MicronsPerPixel, overlaysBurned, seriesIndex, extra);
         WriteAtomic(path, s => JsonSerializer.Serialize(s, dto, Json));
     }
 
     private sealed record MetadataFile(
         DateTime Time, string File, ImageFormatKind Format, int Width, int Height,
         string? CameraModel, string? CameraSerial, bool IsSimulated, float? ExposureMs, float? Gain,
-        ImageAdjustments Adjustments, string? Objective, double? MicronsPerPixel, bool OverlaysBurned, int? SeriesIndex);
+        ImageAdjustments Adjustments, string? Objective, double? MicronsPerPixel, bool OverlaysBurned, int? SeriesIndex,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Extra = null);
 
     public void Dispose() => _worker.Dispose();
 }
