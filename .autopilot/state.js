@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T23:38:40+05:00",
+  "updatedAt": "2026-10-08T23:57:52+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -48,19 +48,22 @@ window.STATE =
     },
     {
       "id": "build",
-      "status": "active",
+      "status": "done",
       "startedAt": "2026-10-08T13:44:07+05:00",
-      "note": "7 из 8 тасков готовы; 08 (Gemini + меню слева) в полёте"
+      "note": "8 из 8 тасков готовы",
+      "finishedAt": "2026-10-08T23:57:52+05:00"
     },
     {
       "id": "review",
-      "status": "active",
+      "status": "done",
       "startedAt": "2026-10-08T13:53:09+05:00",
-      "note": "проверено 7 из 8"
+      "note": "8 из 8 тасков готовы",
+      "finishedAt": "2026-10-08T23:57:52+05:00"
     },
     {
       "id": "final",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-10-08T23:57:52+05:00"
     }
   ],
   "requirements": {
@@ -332,16 +335,56 @@ window.STATE =
         "UI/Effects/",
         "MainWindow (раскладка)"
       ],
+      "status": "done",
+      "retries": 0,
+      "repairs": 1,
+      "handoffs": 0,
+      "startedAt": "2026-10-08T23:38:40+05:00",
+      "repairFindings": [
+        "доводка: тройная подсказка «Переключите микроскоп», разрыв «мкм/px», обрезанные подписи конструктора серии, (string)Tag, Pill на внутренних кнопках WPF-UI, scrim из палитры, тест контраста WCAG, скриншоты калибровки и профилей"
+      ],
+      "commit": "138666c",
+      "finishedAt": "2026-10-08T23:57:52+05:00",
+      "tests": {
+        "passed": 311,
+        "failed": 0
+      }
+    },
+    {
+      "id": "09",
+      "title": "Доводка по отложенным замечаниям",
+      "requirements": [
+        "R18",
+        "R17"
+      ],
+      "blockedBy": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08"
+      ],
+      "wave": 5,
+      "zone": [
+        "Export.Prefix",
+        "фокус-ассистент",
+        "атомарная запись",
+        "профили при --settings",
+        "PaletteTests"
+      ],
       "status": "in-progress",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-08T23:38:40+05:00"
+      "startedAt": "2026-10-09T00:07:57+05:00"
     }
   ],
   "singlePass": null,
   "tests": {
-    "passed": 290,
+    "passed": 311,
     "failed": 0
   },
   "debt": {
@@ -387,13 +430,27 @@ window.STATE =
     "Таск 08: HistogramView RGB и Palette.HslSectors — ссылаться на Palette.Channel*/Error/Success/Cyan/Accent, не дублировать значения",
     "Ревью 06 (3-й проход): неудачный откат из .zs-new\\old проглатывается; откат только для IO/UnauthorizedAccess; нет теста на UnauthorizedAccess",
     "Ревью 07: калибровка по снимку пересчитывается к текущей ширине кадра, не сенсора — при смене разрешения мкм/px неверен (сказать пользователю)",
-    "Вне автопилота (по просьбе пользователя): уведомления — журнал в отдельном окне + колокольчик; ключ --settings для проверок без %AppData%"
+    "Вне автопилота (по просьбе пользователя): уведомления — журнал в отдельном окне + колокольчик; ключ --settings для проверок без %AppData%",
+    "Ревью 08: в тест контраста добавить TextDisabled и Accent на Panel; затемнение под диалогами стало сильнее (α 0.85)",
+    "Профили конфигурации всегда в %AppData%\\ZI-scope\\profiles — ключ --settings их не переносит"
   ],
   "reviewers": {
     "manifestSpec": "a5b01cc46c7d842fd",
     "craft": "a37291edf1fbf8844"
   },
-  "blind": null,
+  "blind": {
+    "verdict": "все 17 пунктов брифа и дополнений — реализовано",
+    "drift": [],
+    "notes": [
+      "профили конфигурации: сохранение не проверено (писало бы в %AppData%)",
+      "калибровка по снимку: подпись показывается как «100 pm», число и единица верны; проверен только жёлтый цвет"
+    ],
+    "commands": [
+      "dotnet build LumeneraViewer.sln -c Debug → 0/0",
+      "dotnet test LumeneraViewer.sln → 311+1 skip",
+      "ZI-scope.exe --settings scratch\\zs-g4\\settings.json → демо 25 к/с"
+    ]
+  },
   "resumeNotes": {
     "ticket04": "готов (dea8333). Волна 3: 05, 06, 07 в полёте → ревью каждого → коммит → 08 (Gemini+слева) → финал",
     "reviewers": "manifestSpec a5b01cc46c7d842fd, craft a37291edf1fbf8844 (если не отвечают — новые)",
@@ -401,6 +458,42 @@ window.STATE =
     "projectOnly": "требование пользователя: проверочные файлы только в папке проекта (.autopilot/<прогон>/scratch/), Документы не трогать",
     "wave3": "05 45a90d7, 06 d44b4af, 07 56ddaf9, уведомления 7a081a7. 08 в полёте",
     "settingsRestore": "ВАЖНО: эталон настроек пользователя — .autopilot/2026-10-08-zi-scope-iterations--wip/scratch/backup/zi.json (снят до волны 3, без агентов). Параллельные исполнители перемешали бэкапы: текущий %AppData%\\ZI-scope\\settings.json отличается. Когда никто не запускает программу — восстановить из эталона и сверить SHA-256.",
-    "wave4": "08 агент ad5d3e5ca3590305e (Gemini, меню слева, + «Снять шаг», плашка на превью, уведомления в палитре). Проверки — только с --settings в scratch"
+    "wave4": "08 агент ad5d3e5ca3590305e (Gemini, меню слева, + «Снять шаг», плашка на превью, уведомления в палитре). Проверки — только с --settings в scratch",
+    "final": "идут G4 (a9dbc866a44abfb10), память (a46ef2fdd6ab1a9f7), ADR (a8d52e2526e738b23); после G4 — таск 09 (tickets/09-final-fixes.md), затем git mv --wip, README, отчёт"
+  },
+  "concernsTriage": {
+    "fixNow": [
+      2,
+      5,
+      7,
+      11,
+      26,
+      27
+    ],
+    "drop": {
+      "6": "переписывает агент памяти в финале",
+      "8": "исправлено в 08",
+      "9": "исправлено в 08",
+      "10": "исправлено в 08",
+      "12": "служебная заметка",
+      "20": "решено ключом --settings",
+      "22": "исправлено в 08",
+      "25": "учтено как добавление"
+    },
+    "report": [
+      1,
+      3,
+      4,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      21,
+      23,
+      24
+    ]
   }
 }
