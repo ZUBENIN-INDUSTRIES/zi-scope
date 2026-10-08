@@ -1,8 +1,8 @@
-# Lumenera Studio — программа для микроскопа с камерой Lumenera INFINITY 4
+# ZI-scope — программа для микроскопа с камерой Lumenera INFINITY 4
 
 Нативная программа для Windows (WPF, .NET 8, x64): живое изображение с камеры микроскопа,
-экспозиция и цвет, плашка масштаба, измерения и снимки в нужном формате. Тёмный интерфейс
-в духе reactbits.dev (WPF-UI + свои эффекты).
+экспозиция и цвет, плашка масштаба, измерения и снимки в нужном формате. Спокойный тёмный
+интерфейс в духе Figma / Linear / VS Code (WPF-UI, графитовая палитра, синий акцент).
 
 Программа ставится на любой компьютер без поиска драйверов в интернете: установщик драйверов
 лежит в комплекте, в папке `Drivers\`, и программа сама предлагает его запустить.
@@ -23,7 +23,7 @@
 - **Снимки:** PNG / JPEG / TIFF / BMP / JPEG XR, впечатывание плашки, серия по таймеру,
   лента последних снимков.
 - **Демо-режим:** симулятор «микропрепарата» — всё можно попробовать без камеры.
-- Настройки сохраняются в `%AppData%\LumeneraViewer\settings.json`.
+- Настройки сохраняются в `%AppData%\ZI-scope\settings.json` (при первом запуске копируются из прежнего `%AppData%\LumeneraViewer\`).
 
 ## Быстрый старт (разработчик)
 
@@ -38,15 +38,15 @@ dotnet run --project src/LumeneraViewer
 ## Готовая папка для переноса: `publish.ps1`
 
 ```powershell
-.\publish.ps1                                   # → dist\LumeneraViewer\
-.\publish.ps1 -Output D:\usb\LumeneraViewer     # в другое место
+.\publish.ps1                                   # → dist\ZI-scope\
+.\publish.ps1 -Output D:\usb\ZI-scope           # в другое место
 ```
 
-Собирает self-contained single-file `LumeneraViewer.exe` (win-x64, Release) и кладёт рядом:
+Собирает self-contained single-file `ZI-scope.exe` (win-x64, Release) и кладёт рядом:
 
 ```
-dist\LumeneraViewer\
-  LumeneraViewer.exe      .NET на целевом компьютере не нужен
+dist\ZI-scope\
+  ZI-scope.exe            .NET на целевом компьютере не нужен
   Drivers\infinity_analyze_and_capture_for_windows_v_6_5_6.exe
   README.txt              инструкция для пользователя (из installer\README-УСТАНОВКА.txt)
 ```

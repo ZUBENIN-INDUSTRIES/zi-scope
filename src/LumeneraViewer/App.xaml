@@ -9,7 +9,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Dark"/>
                 <ui:ControlsDictionary/>
-                <ResourceDictionary Source="/LumeneraViewer;component/UI/Effects/Effects.xaml"/>
+                <ResourceDictionary Source="UI/Effects/Effects.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <local:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <local:EqualsConverter x:Key="Equals"/>

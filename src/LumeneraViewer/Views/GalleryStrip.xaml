@@ -8,7 +8,7 @@
         <!-- Пустая лента -->
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
                     Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
-            <ui:SymbolIcon Symbol="ImageMultiple24" FontSize="22" Foreground="#66FFFFFF" Margin="0,0,10,0"/>
+            <ui:SymbolIcon Symbol="ImageMultiple24" FontSize="22" Foreground="{StaticResource Zs.TextDisabled}" Margin="0,0,10,0"/>
             <TextBlock Text="Снимков пока нет — нажмите Пробел" Style="{StaticResource MutedText}" VerticalAlignment="Center" FontSize="13"/>
         </StackPanel>
 
@@ -22,8 +22,8 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border x:Name="Card" Width="104" Height="70" Margin="0,0,8,0" CornerRadius="8" ClipToBounds="True"
-                                Background="#14FFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1" Cursor="Hand"
+                        <Border x:Name="Card" Width="104" Height="70" Margin="0,0,8,0" CornerRadius="6" ClipToBounds="True"
+                                Background="{StaticResource Zs.Input}" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1" Cursor="Hand"
                                 ToolTip="{Binding FileName}"
                                 MouseLeftButtonUp="OnItemClick" RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
@@ -51,24 +51,22 @@
                                 <TextBlock Text="{Binding FileName}" Style="{StaticResource MutedText}" FontSize="10" Margin="6"
                                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center" TextAlignment="Center"/>
                                 <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <Border x:Name="Glow" CornerRadius="8" BorderThickness="2" BorderBrush="#06B6D4" Opacity="0"/>
-                            </Grid>
+                                                            </Grid>
                         </Border>
                         <DataTemplate.Triggers>
-                            <!-- Появление: слайд слева и вспышка рамки -->
+                            <!-- Появление: короткий сдвиг слева и проявление (≤150 мс) -->
                             <EventTrigger RoutedEvent="FrameworkElement.Loaded">
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Card" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.35"/>
-                                        <DoubleAnimation Storyboard.TargetName="Shift" Storyboard.TargetProperty="X" From="-24" To="0" Duration="0:0:0.45">
+                                        <DoubleAnimation Storyboard.TargetName="Card" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.14"/>
+                                        <DoubleAnimation Storyboard.TargetName="Shift" Storyboard.TargetProperty="X" From="-8" To="0" Duration="0:0:0.14">
                                             <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
                                         </DoubleAnimation>
-                                        <DoubleAnimation Storyboard.TargetName="Glow" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:1.2"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </EventTrigger>
                             <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Card" Property="BorderBrush" Value="#7C3AED"/>
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Zs.TextDisabled}"/>
                             </Trigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>

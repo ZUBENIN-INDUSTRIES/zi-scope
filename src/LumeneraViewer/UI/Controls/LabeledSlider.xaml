@@ -13,8 +13,8 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <TextBlock Text="{Binding Label, ElementName=Root}" FontSize="12.5" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
-        <TextBlock x:Name="ValueLabel" Grid.Column="1" FontSize="12.5" FontWeight="SemiBold" Foreground="#67E8F9"
+        <TextBlock Text="{Binding Label, ElementName=Root}" FontSize="12.5" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="ValueLabel" Grid.Column="1" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Zs.TextSecondary}"
                    VerticalAlignment="Center" MinWidth="36" TextAlignment="Right"/>
         <Slider x:Name="PART_Slider" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,2,0,0"
                 Minimum="{Binding Minimum, ElementName=Root}"

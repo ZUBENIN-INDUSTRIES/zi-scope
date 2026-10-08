@@ -4,22 +4,18 @@ using System.Windows.Media.Animation;
 
 namespace LumeneraViewer.UI.Effects;
 
-/// <summary>Появление: fade 0→1 и сдвиг Y 12→0 за 350 мс, со сдвигом 60 мс между элементами.</summary>
+/// <summary>Сдержанное появление: прозрачность 0→1 и сдвиг Y 4→0 за 140 мс (не больше 150 мс по спецификации).</summary>
 public static class Entrance
 {
-    public static void Play(IEnumerable<UIElement> items, double staggerMs = 60)
+    public const int DurationMs = 140;
+
+    public static void Play(UIElement el)
     {
-        var i = 0;
-        foreach (var el in items)
-        {
-            var begin = TimeSpan.FromMilliseconds(staggerMs * i++);
-            var dur = TimeSpan.FromMilliseconds(350);
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var t = new TranslateTransform(0, 12);
-            el.RenderTransform = t;
-            el.Opacity = 0;
-            el.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur) { BeginTime = begin, EasingFunction = ease });
-            t.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(12, 0, dur) { BeginTime = begin, EasingFunction = ease });
-        }
+        var dur = TimeSpan.FromMilliseconds(DurationMs);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var t = new TranslateTransform(0, 4);
+        el.RenderTransform = t;
+        el.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
+        t.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(4, 0, dur) { EasingFunction = ease });
     }
 }

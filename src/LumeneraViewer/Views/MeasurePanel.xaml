@@ -8,7 +8,7 @@
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
         </Style>
     </UserControl.Resources>
     <StackPanel Margin="0,10,0,0">
@@ -37,14 +37,14 @@
                       Visibility="{Binding HasItems, Converter={StaticResource BoolToVis}}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border CornerRadius="8" Padding="10,2,2,2" Margin="0,0,0,4" Background="#10FFFFFF" BorderBrush="#1AFFFFFF" BorderThickness="1">
+                    <Border CornerRadius="6" Padding="10,2,2,2" Margin="0,0,0,4" Background="{StaticResource Zs.Raised}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Number, StringFormat=#{0}}" Foreground="#8806B6D4" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBlock Text="{Binding Number, StringFormat=#{0}}" Foreground="{StaticResource Zs.TextSecondary}" VerticalAlignment="Center" FontSize="12"/>
                             <TextBlock Grid.Column="1" Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon Dismiss16}" Padding="6" Appearance="Transparent" ToolTip="Удалить"
                                        Command="{Binding DataContext.RemoveCommand, ElementName=Root}" CommandParameter="{Binding}"/>

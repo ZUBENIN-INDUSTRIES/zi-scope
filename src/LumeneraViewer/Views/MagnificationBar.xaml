@@ -1,0 +1,6 @@
+<UserControl x:Class="LumeneraViewer.Views.MagnificationBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- DataContext — MainViewModel. Слот переключателя увеличений «×100 ×200 …» в шапке; наполняет таск 04. -->
+    <Grid/>
+</UserControl>

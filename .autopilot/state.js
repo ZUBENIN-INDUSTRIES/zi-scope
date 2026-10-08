@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T13:44:07+05:00",
+  "updatedAt": "2026-10-08T13:59:38+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -49,11 +49,13 @@ window.STATE =
     {
       "id": "build",
       "status": "active",
-      "startedAt": "2026-10-08T13:44:07+05:00"
+      "startedAt": "2026-10-08T13:44:07+05:00",
+      "note": "1 из 6 тасков готов"
     },
     {
       "id": "review",
-      "status": "pending"
+      "status": "active",
+      "startedAt": "2026-10-08T13:53:09+05:00"
     },
     {
       "id": "final",
@@ -90,7 +92,7 @@ window.STATE =
         "publish.ps1",
         "README"
       ],
-      "status": "in-progress",
+      "status": "review",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
@@ -108,11 +110,21 @@ window.STATE =
       "zone": [
         "Imaging/"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 1,
       "handoffs": 0,
-      "startedAt": "2026-10-08T13:44:07+05:00"
+      "startedAt": "2026-10-08T13:44:07+05:00",
+      "repairFindings": [
+        "ChannelLevels.Map бросает исключение при Black>254 (падение обработки/экспорта)",
+        "ToneCurve с null-точками → NRE; кламп EV; тест параллельного Apply"
+      ],
+      "finishedAt": "2026-10-08T13:58:06+05:00",
+      "commit": "86af0fa",
+      "tests": {
+        "passed": 187,
+        "failed": 0
+      }
     },
     {
       "id": "03",
@@ -140,11 +152,14 @@ window.STATE =
         "Series/",
         "Export/SaveExact"
       ],
-      "status": "in-progress",
+      "status": "repair",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 1,
       "handoffs": 0,
-      "startedAt": "2026-10-08T13:44:07+05:00"
+      "startedAt": "2026-10-08T13:44:07+05:00",
+      "repairFindings": [
+        "решение оркестратора (не BLOCKING, но под ними встанет UI серии): тип исключения при пропавшей папке, проверка format, дубли увеличений, перенос пресетов без потерь, повторная миграция, старый .json при перезаписи"
+      ]
     },
     {
       "id": "04",
@@ -247,10 +262,18 @@ window.STATE =
     "fixed": 4,
     "note": "добавлена тональная кривая (Lightroom); длина плашки по увеличению; место переноса старых калибровок; добавление/удаление увеличений. «Калибровка камеры» Lightroom — в «Вне рамок». Остальное «сверх брифа» — углубления R##.n"
   },
-  "concerns": [],
+  "concerns": [
+    "Imaging/ImageProcessor.Local.cs:20 — буферы размытия (~170 МБ на 4008×2672) живут до конца работы и только растут",
+    "Export.Prefix по умолчанию «Lumenera» — не переименован в ZI-scope; при overwrite без метаданных старый .json остаётся",
+    "Settings/SettingsStore.cs Migrate — ручная длина плашки (FixedMicrons) при первом переходе сбрасывается, а не переносится в профиль текущего увеличения",
+    "Settings/SettingsStore.cs Migrate — пресет с именем, совпадающим с профилем цвета, отбрасывается",
+    "Атомарная запись (tmp→rename) повторена в ProfileFiles, SeriesStore и FrameExporter; Flush(true) только в FrameExporter",
+    "CLAUDE.md устарел после темы (SpotlightCard в рецепте, dist\\LumeneraViewer, Mica) — обновить в финале",
+    "CameraPanel: «NaN % от максимума» в фокус-ассистенте без камеры"
+  ],
   "reviewers": {
-    "manifestSpec": null,
-    "craft": null
+    "manifestSpec": "a5b01cc46c7d842fd",
+    "craft": "a37291edf1fbf8844"
   },
   "blind": null
 }

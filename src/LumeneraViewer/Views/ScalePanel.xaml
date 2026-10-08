@@ -8,7 +8,7 @@
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
         </Style>
         <Style x:Key="Row" TargetType="Grid">
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -31,7 +31,7 @@
         </Grid>
 
         <!-- Калибровка -->
-        <Border CornerRadius="10" Padding="10,8" Margin="0,0,0,10" Background="#10FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1">
+        <Border Style="{StaticResource ZsGroup}" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -42,22 +42,22 @@
                     <TextBlock Text="{Binding CalibrationText}" FontWeight="SemiBold" TextWrapping="Wrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#06B6D4"/>
+                                <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsCalibrated}" Value="False">
-                                        <Setter Property="Foreground" Value="#F59E0B"/>
+                                        <Setter Property="Foreground" Value="{StaticResource Zs.Warning}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
-                <ui:Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding CalibrateCommand}" fx:ClickSpark.IsEnabled="True"
+                <ui:Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding CalibrateCommand}"
                            Icon="{ui:SymbolIcon Ruler24}" ToolTip="Провести линию по объект-микрометру и ввести её длину">
                     <ui:Button.Style>
                         <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                             <Setter Property="Content" Value="Калибровать"/>
-                            <Setter Property="Appearance" Value="Primary"/>
+                            <Setter Property="Appearance" Value="Secondary"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCalibrating}" Value="True">
                                     <Setter Property="Content" Value="Отмена"/>

@@ -7,14 +7,14 @@
     <!-- DataContext — ColorPanelViewModel -->
     <UserControl.Resources>
         <Style x:Key="SectionLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#8CFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="Divider" TargetType="Border">
             <Setter Property="Height" Value="1"/>
-            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Background" Value="{StaticResource Zs.Border}"/>
             <Setter Property="Margin" Value="0,10,0,10"/>
         </Style>
     </UserControl.Resources>
@@ -31,7 +31,6 @@
         <Grid Margin="0,0,0,4">
             <TextBlock Text="Баланс белого" Style="{StaticResource SectionLabel}"/>
             <ui:Button HorizontalAlignment="Right" Padding="10,3" FontSize="12" Command="{Binding AutoWhiteBalanceCommand}"
-                       fx:ClickSpark.IsEnabled="True"
                        ToolTip="Серый мир по центральной области последнего кадра">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="Wand24" FontSize="13" Margin="0,0,5,0"/>
@@ -77,7 +76,7 @@
                 <ColumnDefinition Width="8"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <ui:Button HorizontalAlignment="Stretch" Command="{Binding SavePresetCommand}" Appearance="Primary">
+            <ui:Button HorizontalAlignment="Stretch" Command="{Binding SavePresetCommand}">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="Save24" FontSize="14" Margin="0,0,6,0"/>
                     <TextBlock Text="Сохранить как…"/>

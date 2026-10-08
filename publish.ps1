@@ -1,15 +1,15 @@
 ﻿<#
 .SYNOPSIS
   Собирает готовую папку для переноса на компьютер с микроскопом:
-  dist\LumeneraViewer\  =  LumeneraViewer.exe (self-contained, один файл)
-                           Drivers\<установщик INFINITY ANALYZE/CAPTURE>.exe
-                           README.txt
+  dist\ZI-scope\  =  ZI-scope.exe (self-contained, один файл)
+                     Drivers\<установщик INFINITY ANALYZE/CAPTURE>.exe
+                     README.txt
 .EXAMPLE
   .\publish.ps1
-  .\publish.ps1 -Output D:\usb\LumeneraViewer
+  .\publish.ps1 -Output D:\usb\ZI-scope
 #>
 param(
-    [string]$Output = (Join-Path $PSScriptRoot 'dist\LumeneraViewer'),
+    [string]$Output = (Join-Path $PSScriptRoot 'dist\ZI-scope'),
     [string]$Configuration = 'Release'
 )
 
@@ -35,7 +35,7 @@ if (-not (Test-Path $readme)) { Fail "Нет файла $readme" }
 Write-Host "    Установщик драйверов: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) МБ)"
 
 # 2. Сборка
-Step "Собираю LumeneraViewer.exe ($Configuration, win-x64, self-contained, один файл)"
+Step "Собираю ZI-scope.exe ($Configuration, win-x64, self-contained, один файл)"
 if (Test-Path $Output) { Remove-Item -Recurse -Force $Output }
 $publishArgs = @(
     'publish', $project, '-c', $Configuration, '-r', 'win-x64', '--self-contained', 'true',
@@ -54,7 +54,7 @@ Copy-Item $installer.FullName $drivers -Force
 Copy-Item $readme (Join-Path $Output 'README.txt') -Force
 
 # 4. Итог
-$exe = Join-Path $Output 'LumeneraViewer.exe'
+$exe = Join-Path $Output 'ZI-scope.exe'
 if (-not (Test-Path $exe)) { Fail "После сборки нет $exe" }
 Step 'Готово'
 Get-ChildItem $Output -Recurse -File | ForEach-Object {
@@ -62,4 +62,4 @@ Get-ChildItem $Output -Recurse -File | ForEach-Object {
 }
 Write-Host ''
 Write-Host "Папка для переноса: $Output" -ForegroundColor Green
-Write-Host 'Скопируйте её целиком на компьютер с микроскопом и запустите LumeneraViewer.exe.'
+Write-Host 'Скопируйте её целиком на компьютер с микроскопом и запустите ZI-scope.exe.'

@@ -5,17 +5,17 @@
                  xmlns:fx="clr-namespace:LumeneraViewer.UI.Effects"
                  xmlns:c="clr-namespace:LumeneraViewer.UI.Controls"
                  xmlns:v="clr-namespace:LumeneraViewer.Views"
-                 Title="Lumenera Studio"
+                 Title="ZI-scope"
                  Width="1400" Height="880" MinWidth="960" MinHeight="600"
                  ExtendsContentIntoTitleBar="True"
-                 WindowBackdropType="Mica"
+                 WindowBackdropType="None"
                  WindowCornerPreference="Round"
                  WindowStartupLocation="CenterScreen"
-                 Background="#0B0B12"
-                 Foreground="White">
+                 Background="{StaticResource Zs.Window}"
+                 Foreground="{StaticResource Zs.Text}"
+                 FontFamily="{StaticResource Zs.Font}"
+                 FontSize="13">
     <Grid>
-        <fx:AuroraBackground/>
-
         <Grid x:Name="Root">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -24,88 +24,66 @@
             </Grid.RowDefinitions>
 
             <!-- Заголовок окна -->
-            <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Height="44">
+            <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Height="40">
                 <ui:TitleBar.Header>
-                    <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
-                        <Border Width="22" Height="22" CornerRadius="7" Margin="0,0,10,0">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#7C3AED" Offset="0"/>
-                                    <GradientStop Color="#06B6D4" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <ui:SymbolIcon Symbol="Microscope24" FontSize="13" Foreground="White"/>
-                        </Border>
-                        <fx:ShinyText Text="Lumenera Studio" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <TextBlock Text="  ·  INFINITY 4" Foreground="#80FFFFFF" FontSize="13" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="Microscope24" FontSize="16" Foreground="{StaticResource Zs.TextSecondary}" Margin="0,0,8,0"/>
+                        <TextBlock Text="ZI-scope" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </ui:TitleBar.Header>
             </ui:TitleBar>
 
-            <!-- Шапка: статус и действия -->
-            <Grid x:Name="Toolbar" Grid.Row="1" Margin="16,4,16,10">
+            <!-- Шапка: статус, увеличение, действия -->
+            <Grid x:Name="Toolbar" Grid.Row="1" Margin="12,0,12,10">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Панель статуса: одно стекло, сегменты через тонкие разделители -->
+                <!-- Панель статуса: сегменты через тонкие разделители -->
                 <Border Style="{StaticResource StatusPanel}">
                     <StackPanel Orientation="Horizontal">
-                        <c:StatusSegment Caption="Статус" MinWidth="218">
+                        <c:StatusSegment Caption="Статус" MinWidth="200">
                             <c:StatusSegment.Indicator>
-                                <Grid Width="10" Height="10">
-                                    <Ellipse Fill="{Binding State, Converter={StaticResource StateBrush}}" RenderTransformOrigin="0.5,0.5">
-                                        <Ellipse.RenderTransform>
-                                            <ScaleTransform/>
-                                        </Ellipse.RenderTransform>
-                                        <Ellipse.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever" Timeline.DesiredFrameRate="30">
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="1" To="2.6" Duration="0:0:1.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="1" To="2.6" Duration="0:0:1.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.7" To="0" Duration="0:0:1.4"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Ellipse.Triggers>
-                                    </Ellipse>
-                                    <Ellipse Fill="{Binding State, Converter={StaticResource StateBrush}}"/>
-                                </Grid>
+                                <Ellipse Width="8" Height="8" Fill="{Binding State, Converter={StaticResource StateBrush}}"/>
                             </c:StatusSegment.Indicator>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusValue}"/>
                                 <Border Style="{StaticResource StatusTag}" Visibility="{Binding IsDemo, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="ДЕМО" FontSize="10" FontWeight="Bold" Foreground="#DDD6FE"/>
+                                    <TextBlock Text="ДЕМО" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Zs.TextSecondary}"/>
                                 </Border>
                             </StackPanel>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="Камера" Icon="Camera24" MinWidth="236" MaxWidth="320"
+                        <c:StatusSegment Caption="Камера" Icon="Camera24" MinWidth="220" MaxWidth="300"
                                          IsEmpty="{Binding IsPlaceholderVisible}">
                             <TextBlock Text="{Binding CameraTitle}" ToolTip="{Binding CameraTitle}" Style="{StaticResource StatusValue}"/>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="Разрешение" Icon="Resize24" MinWidth="132"
+                        <c:StatusSegment Caption="Разрешение" Icon="Resize24" MinWidth="124"
                                          IsEmpty="{Binding IsPlaceholderVisible}">
                             <TextBlock Text="{Binding ResolutionText}" Style="{StaticResource StatusValue}"/>
                         </c:StatusSegment>
                         <Rectangle Style="{StaticResource StatusDivider}"/>
-                        <c:StatusSegment Caption="FPS" Icon="TopSpeed24" MinWidth="104"
+                        <c:StatusSegment Caption="FPS" Icon="TopSpeed24" MinWidth="98"
                                          IsEmpty="{Binding IsPlaceholderVisible}">
                             <StackPanel Orientation="Horizontal">
-                                <fx:CountUpText Value="{Binding Fps}" Format="0.0" FontSize="13.5" FontWeight="SemiBold" Foreground="#06B6D4"/>
-                                <TextBlock Text=" к/с" FontSize="12" Foreground="#8CFFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                <fx:CountUpText Value="{Binding Fps}" Format="0.0" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}"/>
+                                <TextBlock Text=" к/с" FontSize="12" Foreground="{StaticResource Zs.TextSecondary}" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
                             </StackPanel>
                         </c:StatusSegment>
                     </StackPanel>
                 </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ToggleButton IsChecked="{Binding IsFrozen}" ToolTip="Пауза (F)" Margin="0,0,6,0" Padding="12,6" Focusable="False">
+                <!-- Слот: переключатель увеличений (таск 04) -->
+                <v:MagnificationBar x:Name="MagnificationSlot" Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"
+                                    HorizontalAlignment="Left"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ToggleButton IsChecked="{Binding IsFrozen}" ToolTip="Пауза (F)" Margin="0,0,6,0" Padding="10,5" Focusable="False">
                         <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="Pause24" Margin="0,0,6,0"/>
+                            <ui:SymbolIcon Symbol="Pause24" FontSize="16" Margin="0,0,6,0"/>
                             <TextBlock Text="Пауза"/>
                         </StackPanel>
                     </ToggleButton>
@@ -135,7 +113,7 @@
             </Grid>
 
             <!-- Рабочая область -->
-            <Grid Grid.Row="2" Margin="16,0,16,16">
+            <Grid Grid.Row="2" Margin="12,0,12,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -148,7 +126,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- Превью -->
-                    <Border CornerRadius="14" Background="#CC050509" BorderBrush="#22FFFFFF" BorderThickness="1">
+                    <Border CornerRadius="8" Background="{StaticResource Zs.Input}" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1">
                         <Grid>
                             <c:ZoomPanHost x:Name="Zoom" Margin="1"
                                            Zoom="{Binding PreviewZoom, Mode=OneWayToSource}"
@@ -161,137 +139,145 @@
                             </c:ZoomPanHost>
 
                             <!-- Индикатор зума и пауза -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12"
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10"
                                         IsHitTestVisible="False"
                                         Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-                                <Border Background="#99000000" CornerRadius="8" Padding="10,4" Margin="0,0,6,0">
-                                    <TextBlock Text="{Binding PreviewZoom, StringFormat={}{0:P0}}" FontSize="12.5" Foreground="White"/>
+                                <Border Background="#E61E2024" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1" CornerRadius="6" Padding="8,3" Margin="0,0,6,0">
+                                    <TextBlock Text="{Binding PreviewZoom, StringFormat={}{0:P0}}" FontSize="12" Foreground="{StaticResource Zs.Text}"/>
                                 </Border>
-                                <Border Background="#CCF59E0B" CornerRadius="8" Padding="10,4"
+                                <Border Background="{StaticResource Zs.Warning}" CornerRadius="6" Padding="8,3"
                                         Visibility="{Binding IsFrozen, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="ПАУЗА" FontSize="12" FontWeight="Bold" Foreground="Black"/>
+                                    <TextBlock Text="ПАУЗА" FontSize="11.5" FontWeight="SemiBold" Foreground="#1E2024"/>
                                 </Border>
                             </StackPanel>
 
                             <!-- Экран «нет камеры» -->
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="460"
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440"
                                         Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}}">
-                                <Grid Width="140" Height="140" HorizontalAlignment="Center" Margin="0,0,0,18">
-                                    <Ellipse Stroke="#7C3AED" StrokeThickness="2" RenderTransformOrigin="0.5,0.5" Opacity="0">
-                                        <Ellipse.RenderTransform><ScaleTransform/></Ellipse.RenderTransform>
-                                        <Ellipse.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever" Timeline.DesiredFrameRate="30">
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="0.45" To="1" Duration="0:0:2.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="0.45" To="1" Duration="0:0:2.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.9" To="0" Duration="0:0:2.4"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Ellipse.Triggers>
-                                    </Ellipse>
-                                    <Ellipse Stroke="#06B6D4" StrokeThickness="2" RenderTransformOrigin="0.5,0.5" Opacity="0">
-                                        <Ellipse.RenderTransform><ScaleTransform/></Ellipse.RenderTransform>
-                                        <Ellipse.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever" BeginTime="0:0:1.2" Timeline.DesiredFrameRate="30">
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="0.45" To="1" Duration="0:0:2.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="0.45" To="1" Duration="0:0:2.4"/>
-                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.9" To="0" Duration="0:0:2.4"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Ellipse.Triggers>
-                                    </Ellipse>
-                                    <Border Width="68" Height="68" CornerRadius="34" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#7C3AED" Offset="0"/>
-                                                <GradientStop Color="#06B6D4" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Border.Effect>
-                                            <DropShadowEffect Color="#7C3AED" BlurRadius="30" ShadowDepth="0" Opacity="0.7"/>
-                                        </Border.Effect>
-                                        <ui:SymbolIcon Symbol="Camera24" FontSize="30" Foreground="White"/>
-                                    </Border>
-                                </Grid>
-                                <TextBlock Text="{Binding PlaceholderTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="White"/>
-                                <TextBlock Text="{Binding PlaceholderText}" FontSize="13.5" Foreground="#A6FFFFFF" TextWrapping="Wrap"
-                                           TextAlignment="Center" Margin="0,8,0,18"/>
-                                <ui:ProgressRing IsIndeterminate="True" Width="28" Height="28" Margin="0,0,0,14"
+                                <Border Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Center" Margin="0,0,0,16"
+                                        Background="{StaticResource Zs.Raised}" BorderBrush="{StaticResource Zs.Border}" BorderThickness="1">
+                                    <ui:SymbolIcon Symbol="Camera24" FontSize="24" Foreground="{StaticResource Zs.TextSecondary}"/>
+                                </Border>
+                                <TextBlock Text="{Binding PlaceholderTitle}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding PlaceholderText}" FontSize="13" Foreground="{StaticResource Zs.TextSecondary}" TextWrapping="Wrap"
+                                           TextAlignment="Center" Margin="0,6,0,18"/>
+                                <ui:ProgressRing IsIndeterminate="True" Width="24" Height="24" Margin="0,0,0,14"
                                                  Visibility="{Binding IsConnecting, Converter={StaticResource BoolToVis}}"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                             Visibility="{Binding IsConnecting, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-                                    <ui:Button Content="Установить драйверы" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary"
+                                    <ui:Button Content="Установить драйверы" Icon="{ui:SymbolIcon ArrowDownload24}"
                                                Command="{Binding InstallDriversCommand}" Margin="0,0,8,0"
                                                Visibility="{Binding ShowInstallDrivers, Converter={StaticResource BoolToVis}}"/>
                                     <ui:Button Content="Повторить" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RetryCommand}" Margin="0,0,8,0"/>
-                                    <ui:Button Content="Демо-режим" Icon="{ui:SymbolIcon Sparkle24}" Appearance="Primary" Command="{Binding DemoCommand}"/>
+                                    <ui:Button Content="Демо-режим" Icon="{ui:SymbolIcon Sparkle24}" Command="{Binding DemoCommand}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- Лента снимков (таск 06) -->
-                    <fx:SpotlightCard Grid.Row="1" Margin="0,12,0,0" Height="96" Padding="16,12" SpotlightColor="#06B6D4">
-                        <v:GalleryStrip DataContext="{Binding Gallery}"/>
-                    </fx:SpotlightCard>
+                    <!-- Низ: лента снимков или карта серии -->
+                    <Border Grid.Row="1" Margin="0,10,0,0" Height="122" Style="{StaticResource ZsPanel}" Padding="12,8,12,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Style="{StaticResource ZsSegmentBar}" HorizontalAlignment="Left" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="BottomGallery" Style="{StaticResource ZsSegment}" GroupName="Bottom" IsChecked="True" Content="Лента"/>
+                                    <RadioButton x:Name="BottomSeries" Style="{StaticResource ZsSegment}" GroupName="Bottom" Content="Карта серии"/>
+                                </StackPanel>
+                            </Border>
+                            <v:GalleryStrip Grid.Row="1" DataContext="{Binding Gallery}"
+                                            Visibility="{Binding IsChecked, ElementName=BottomGallery, Converter={StaticResource BoolToVis}}"/>
+                            <v:SeriesMap Grid.Row="1" DataContext="{Binding SeriesPanel}"
+                                         Visibility="{Binding IsChecked, ElementName=BottomSeries, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+                    </Border>
                 </Grid>
 
-                <!-- Правая панель -->
-                <Grid Grid.Column="1" Width="344" Margin="14,0,0,0"
-                      Visibility="{Binding IsPanelCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" Padding="0,0,4,0">
-                        <StackPanel x:Name="Cards">
-                            <fx:SpotlightCard Margin="0,0,0,10">
-                                <StackPanel>
-                                    <c:CardHeader Title="Камера" Icon="Camera24"/>
-                                    <v:CameraPanel DataContext="{Binding CameraPanel}"/>
-                                </StackPanel>
-                            </fx:SpotlightCard>
-                            <fx:SpotlightCard Margin="0,0,0,10" SpotlightColor="#F472B6">
-                                <StackPanel>
-                                    <c:CardHeader Title="Цвет" Icon="Color24"/>
-                                    <v:ColorPanel DataContext="{Binding ColorPanel}"/>
-                                </StackPanel>
-                            </fx:SpotlightCard>
-                            <fx:SpotlightCard Margin="0,0,0,10" SpotlightColor="#06B6D4">
-                                <StackPanel>
-                                    <c:CardHeader Title="Масштаб" Icon="Scales24"/>
-                                    <v:ScalePanel DataContext="{Binding ScalePanel}"/>
-                                </StackPanel>
-                            </fx:SpotlightCard>
-                            <fx:SpotlightCard Margin="0,0,0,10">
-                                <StackPanel>
-                                    <c:CardHeader Title="Измерения" Icon="Ruler24"/>
-                                    <v:MeasurePanel DataContext="{Binding MeasurePanel}"/>
-                                </StackPanel>
-                            </fx:SpotlightCard>
-                            <fx:SpotlightCard Margin="0,0,0,10" SpotlightColor="#F472B6">
-                                <StackPanel>
-                                    <c:CardHeader Title="Сохранение" Icon="Save24"/>
-                                    <v:CapturePanel DataContext="{Binding CapturePanel}"/>
-                                </StackPanel>
-                            </fx:SpotlightCard>
-                        </StackPanel>
-                    </ScrollViewer>
-                    <fx:GlowButton Grid.Row="1" Margin="0,12,0,0" Command="{Binding CapturePanel.CaptureCommand}" ToolTip="Снимок (Пробел)">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="18" Foreground="White" Margin="0,0,8,0"/>
-                            <TextBlock Text="Снимок" VerticalAlignment="Center"/>
-                            <Border Background="#33FFFFFF" CornerRadius="6" Padding="6,1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>
+                <!-- Правая панель: содержимое вкладки + полоса вкладок-иконок (как activity bar) -->
+                <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource ZsPanel}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Width="320"
+                              Visibility="{Binding IsPanelCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock x:Name="TabTitle" Text="Камера" Margin="16,14,16,0" FontSize="13" FontWeight="SemiBold"/>
+
+                            <ScrollViewer x:Name="TabScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False" Padding="16,0,12,12">
+                                <Grid x:Name="Pages">
+                                    <StackPanel x:Name="PageCamera" Tag="camera">
+                                        <v:CameraPanel Margin="0,12,0,0" DataContext="{Binding CameraPanel}"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PageColor" Tag="color" Visibility="Collapsed">
+                                        <v:ColorPanel Margin="0,12,0,0" DataContext="{Binding ColorPanel}"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PageScale" Tag="scale" Visibility="Collapsed">
+                                        <v:ScalePanel DataContext="{Binding ScalePanel}"/>
+                                        <Border Style="{StaticResource ZsDivider}" Margin="0,14,0,14"/>
+                                        <c:CardHeader Title="Измерения" Icon="Ruler24" Margin="0"/>
+                                        <v:MeasurePanel DataContext="{Binding MeasurePanel}"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PageSeries" Tag="series" Visibility="Collapsed">
+                                        <v:SeriesPanel DataContext="{Binding SeriesPanel}"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PageCapture" Tag="capture" Visibility="Collapsed">
+                                        <v:CapturePanel DataContext="{Binding CapturePanel}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+
+                            <Border Grid.Row="2" BorderBrush="{StaticResource Zs.Border}" BorderThickness="0,1,0,0" Padding="12">
+                                <Button Style="{StaticResource ZsPrimaryButton}" Command="{Binding PrimaryCaptureCommand}" ToolTip="Снимок (Пробел)">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="16" Foreground="White" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Снимок" VerticalAlignment="Center"/>
+                                        <Border Style="{StaticResource ZsKeyHint}">
+                                            <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
                             </Border>
+                        </Grid>
+
+                        <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource Zs.Border}"
+                                   Visibility="{Binding IsPanelCollapsed, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+
+                        <StackPanel x:Name="TabBar" Grid.Column="2" Width="44" Margin="0,4,0,4">
+                            <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="camera" ToolTip="Камера" AutomationProperties.Name="Камера"
+                                         Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
+                                <ui:SymbolIcon Symbol="Camera24" FontSize="20"/>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="color" ToolTip="Цвет" AutomationProperties.Name="Цвет"
+                                         Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
+                                <ui:SymbolIcon Symbol="Color24" FontSize="20"/>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="scale" ToolTip="Масштаб и измерения" AutomationProperties.Name="Масштаб и измерения"
+                                         Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
+                                <ui:SymbolIcon Symbol="Ruler24" FontSize="20"/>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="series" ToolTip="Серия" AutomationProperties.Name="Серия"
+                                         Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
+                                <ui:SymbolIcon Symbol="TableSimple24" FontSize="20"/>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="capture" ToolTip="Сохранение" AutomationProperties.Name="Сохранение"
+                                         Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
+                                <ui:SymbolIcon Symbol="Save24" FontSize="20"/>
+                            </RadioButton>
                         </StackPanel>
-                    </fx:GlowButton>
-                </Grid>
+                    </Grid>
+                </Border>
             </Grid>
         </Grid>
 

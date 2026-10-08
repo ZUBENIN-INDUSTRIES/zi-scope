@@ -8,7 +8,7 @@ namespace LumeneraViewer.UI.Controls;
 /// <summary>Лёгкая гистограмма: яркость и R/G/B полупрозрачными слоями (StreamGeometry, без визуального дерева).</summary>
 public sealed class HistogramView : FrameworkElement
 {
-    private static readonly Brush Back = Palette.Frozen(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF));
+    private static readonly Brush Back = Palette.InputBrush;
     private static readonly Pen GridPen = Freeze(new Pen(Palette.Frozen(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)), 1));
     private static readonly Brush RFill = Palette.Frozen(Color.FromArgb(0x55, 0xF8, 0x71, 0x71));
     private static readonly Brush GFill = Palette.Frozen(Color.FromArgb(0x55, 0x4A, 0xDE, 0x80));
@@ -26,7 +26,7 @@ public sealed class HistogramView : FrameworkElement
     {
         double w = ActualWidth, h = ActualHeight;
         if (w <= 0 || h <= 0) return;
-        dc.DrawRoundedRectangle(Back, null, new Rect(0, 0, w, h), 8, 8);
+        dc.DrawRoundedRectangle(Back, null, new Rect(0, 0, w, h), 6, 6);
         for (int i = 1; i < 4; i++)
         {
             double x = Math.Round(w * i / 4) + 0.5;
@@ -76,12 +76,12 @@ public sealed class HistogramView : FrameworkElement
     }
 }
 
-/// <summary>Полоса уровня 0…1 с градиентом палитры и маркером (например, максимум резкости).</summary>
+/// <summary>Полоса уровня 0…1 акцентного цвета и маркером (например, максимум резкости).</summary>
 public sealed class LevelBar : FrameworkElement
 {
-    private static readonly Brush Track = Palette.Frozen(Color.FromArgb(0x1A, 0xFF, 0xFF, 0xFF));
-    private static readonly Brush Fill = FreezeBrush(new LinearGradientBrush(Palette.Violet, Palette.Cyan, 0));
-    private static readonly Brush MarkerBrush = Palette.Frozen(Palette.Pink);
+    private static readonly Brush Track = Palette.RaisedBrush;
+    private static readonly Brush Fill = Palette.AccentBrush;
+    private static readonly Brush MarkerBrush = Palette.TextBrush;
 
     public static readonly DependencyProperty ValueProperty = DependencyProperty.Register(
         nameof(Value), typeof(double), typeof(LevelBar), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -106,11 +106,5 @@ public sealed class LevelBar : FrameworkElement
             double x = Math.Clamp(Marker, 0, 1) * w;
             dc.DrawRoundedRectangle(MarkerBrush, null, new Rect(x - 1.5, -3, 3, h + 6), 1.5, 1.5);
         }
-    }
-
-    private static Brush FreezeBrush(Brush b)
-    {
-        b.Freeze();
-        return b;
     }
 }

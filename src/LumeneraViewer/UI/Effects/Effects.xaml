@@ -4,40 +4,103 @@
                     xmlns:fx="clr-namespace:LumeneraViewer.UI.Effects"
                     xmlns:c="clr-namespace:LumeneraViewer.UI.Controls">
 
-    <Style TargetType="{x:Type fx:GlowButton}">
-        <Setter Property="Foreground" Value="White"/>
+    <!-- ═══ Токены палитры (источник — UI/Effects/Palette.cs) ═══ -->
+    <x:Static x:Key="Zs.Window" Member="fx:Palette.WindowBrush"/>
+    <x:Static x:Key="Zs.Panel" Member="fx:Palette.PanelBrush"/>
+    <x:Static x:Key="Zs.Raised" Member="fx:Palette.RaisedBrush"/>
+    <x:Static x:Key="Zs.RaisedHover" Member="fx:Palette.RaisedHoverBrush"/>
+    <x:Static x:Key="Zs.Input" Member="fx:Palette.InputBrush"/>
+    <x:Static x:Key="Zs.Border" Member="fx:Palette.BorderBrush"/>
+    <x:Static x:Key="Zs.Text" Member="fx:Palette.TextBrush"/>
+    <x:Static x:Key="Zs.TextSecondary" Member="fx:Palette.TextSecondaryBrush"/>
+    <x:Static x:Key="Zs.TextDisabled" Member="fx:Palette.TextDisabledBrush"/>
+    <x:Static x:Key="Zs.Accent" Member="fx:Palette.AccentBrush"/>
+    <x:Static x:Key="Zs.AccentHover" Member="fx:Palette.AccentHoverBrush"/>
+    <x:Static x:Key="Zs.AccentPressed" Member="fx:Palette.AccentPressedBrush"/>
+    <x:Static x:Key="Zs.AccentSelection" Member="fx:Palette.AccentSelectionBrush"/>
+    <x:Static x:Key="Zs.Success" Member="fx:Palette.SuccessBrush"/>
+    <x:Static x:Key="Zs.Warning" Member="fx:Palette.WarningBrush"/>
+    <x:Static x:Key="Zs.Error" Member="fx:Palette.ErrorBrush"/>
+    <x:Static x:Key="Zs.Font" Member="fx:Theme.Font"/>
+
+    <CornerRadius x:Key="Zs.RadiusControl">6</CornerRadius>
+    <CornerRadius x:Key="Zs.RadiusPanel">8</CornerRadius>
+
+    <!-- ═══ Поверхности ═══ -->
+
+    <!-- Панель/карточка: фон панели, тонкая граница, радиус 8 -->
+    <Style x:Key="ZsPanel" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Zs.Panel}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Группа внутри панели (калибровка, тайм-лапс): только контур, радиус 6 -->
+    <Style x:Key="ZsGroup" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Горизонтальный разделитель секций -->
+    <Style x:Key="ZsDivider" TargetType="Border">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource Zs.Border}"/>
+        <Setter Property="Margin" Value="0,12,0,12"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- ═══ Текст ═══ -->
+
+    <!-- Подпись секции внутри вкладки -->
+    <Style x:Key="ZsSectionLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="15"/>
-        <Setter Property="Padding" Value="20,12"/>
+        <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="MutedText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource Zs.TextSecondary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <!-- ═══ Кнопки ═══ -->
+
+    <!-- Главная кнопка («Снимок», «Снять шаг»): сплошная синяя, без градиентов и свечения -->
+    <Style x:Key="ZsPrimaryButton" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{StaticResource Zs.Accent}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Height" Value="38"/>
+        <Setter Property="Padding" Value="16,0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="{x:Type fx:GlowButton}">
-                    <Border x:Name="PART_Surface" CornerRadius="12" SnapsToDevicePixels="True">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#7C3AED" Offset="0"/>
-                                <GradientStop Color="#06B6D4" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <Border CornerRadius="12,12,0,0" VerticalAlignment="Top" Height="18">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#33FFFFFF" Offset="0"/>
-                                        <GradientStop Color="#00FFFFFF" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                            </Border>
-                            <Border CornerRadius="12" BorderThickness="1" BorderBrush="#40FFFFFF"/>
-                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
-                        </Grid>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" CornerRadius="6" Background="{TemplateBinding Background}">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource Zs.AccentHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource Zs.AccentPressed}"/>
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource Zs.Raised}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Zs.TextDisabled}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -45,50 +108,133 @@
         </Setter>
     </Style>
 
-    <!-- Панель статуса в шапке: одно стекло, как у SpotlightCard, разделённое на сегменты -->
-    <Style x:Key="StatusPanel" TargetType="Border">
-        <Setter Property="Background" Value="#14FFFFFF"/>
-        <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+    <!-- Подсказка клавиши внутри кнопки («Пробел») -->
+    <Style x:Key="ZsKeyHint" TargetType="Border">
+        <Setter Property="Background" Value="#26FFFFFF"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="6,1"/>
+        <Setter Property="Margin" Value="10,0,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Вкладка-иконка правой панели (как activity bar в VS Code): синяя полоска и иконка у активной -->
+    <Style x:Key="ZsActivityTab" TargetType="RadioButton">
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="Height" Value="44"/>
+        <Setter Property="Foreground" Value="{StaticResource Zs.TextSecondary}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Hover" Margin="5" CornerRadius="6" Background="{StaticResource Zs.Raised}" Opacity="0"/>
+                        <Border x:Name="Bar" Width="2" HorizontalAlignment="Left" Margin="0,10" CornerRadius="1"
+                                Background="{StaticResource Zs.Accent}" Visibility="Hidden"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard><DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12"/></Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard><DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.12"/></Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+                            <Setter Property="Foreground" Value="{StaticResource Zs.Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Сегмент переключателя («Лента / Карта серии»): выбранный — приподнятый фон и основной текст -->
+    <Style x:Key="ZsSegment" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource Zs.TextSecondary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="10,3"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Surface" CornerRadius="4" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource Zs.Raised}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Контейнер сегментов -->
+    <Style x:Key="ZsSegmentBar" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Zs.Input}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="10"/>
-        <Setter Property="Height" Value="50"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="2"/>
+    </Style>
+
+    <!-- ═══ Панель статуса в шапке ═══ -->
+
+    <Style x:Key="StatusPanel" TargetType="Border" BasedOn="{StaticResource ZsPanel}">
+        <Setter Property="Height" Value="44"/>
         <Setter Property="Padding" Value="2,0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Left"/>
-        <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
     <!-- Вертикальный разделитель сегментов -->
     <Style x:Key="StatusDivider" TargetType="Rectangle">
         <Setter Property="Width" Value="1"/>
-        <Setter Property="Fill" Value="#1FFFFFFF"/>
-        <Setter Property="Margin" Value="0,11"/>
+        <Setter Property="Fill" Value="{StaticResource Zs.Border}"/>
+        <Setter Property="Margin" Value="0,10"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
     <!-- Значение сегмента -->
     <Style x:Key="StatusValue" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="#F2FFFFFF"/>
+        <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- Маленький прямоугольный тег (ДЕМО) -->
+    <!-- Маленький тег (ДЕМО): нейтральный, без цвета -->
     <Style x:Key="StatusTag" TargetType="Border">
-        <Setter Property="Background" Value="#407C3AED"/>
-        <Setter Property="BorderBrush" Value="#997C3AED"/>
+        <Setter Property="Background" Value="{StaticResource Zs.Raised}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Zs.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="Padding" Value="5,1,5,1"/>
+        <Setter Property="Padding" Value="5,0,5,1"/>
         <Setter Property="Margin" Value="8,0,0,0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style TargetType="{x:Type c:StatusSegment}">
-        <Setter Property="Foreground" Value="White"/>
-        <Setter Property="Padding" Value="14,0,16,0"/>
+        <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+        <Setter Property="Padding" Value="12,0,14,0"/>
         <Setter Property="VerticalAlignment" Value="Stretch"/>
         <Setter Property="Focusable" Value="False"/>
         <Setter Property="Template">
@@ -102,13 +248,13 @@
                             </Grid.ColumnDefinitions>
                             <Grid Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
                                 <ui:SymbolIcon x:Name="PART_Icon" Symbol="{TemplateBinding Icon}" FontSize="16"
-                                               Foreground="#8CFFFFFF" Visibility="Collapsed"/>
+                                               Foreground="{StaticResource Zs.TextSecondary}" Visibility="Collapsed"/>
                                 <ContentPresenter x:Name="PART_Indicator" Content="{TemplateBinding Indicator}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{TemplateBinding CaptionText}" FontSize="10" FontWeight="SemiBold"
-                                           Foreground="#73FFFFFF" Margin="0,0,0,2"/>
+                                           Foreground="{StaticResource Zs.TextDisabled}" Margin="0,0,0,1"/>
                                 <Grid>
                                     <ContentPresenter x:Name="PART_Value"/>
                                     <TextBlock x:Name="PART_Empty" Text="—" Style="{StaticResource StatusValue}" Visibility="Collapsed"/>
@@ -129,11 +275,5 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
-    </Style>
-
-    <Style x:Key="MutedText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="#99FFFFFF"/>
-        <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 </ResourceDictionary>

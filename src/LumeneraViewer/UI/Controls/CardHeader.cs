@@ -1,22 +1,21 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using LumeneraViewer.UI.Effects;
 using Wpf.Ui.Controls;
 
 namespace LumeneraViewer.UI.Controls;
 
-/// <summary>Заголовок карточки панели: иконка в цветном кружке + название.</summary>
+/// <summary>Заголовок раздела панели: приглушённая иконка + название (плоско, без плашек).</summary>
 public sealed class CardHeader : StackPanel
 {
-    private readonly SymbolIcon _icon = new() { FontSize = 16, Foreground = Brushes.White };
+    private readonly SymbolIcon _icon = new() { FontSize = 16, Foreground = Palette.TextSecondaryBrush };
     private readonly System.Windows.Controls.TextBlock _title = new()
     {
-        FontSize = 14.5,
+        FontSize = 13,
         FontWeight = FontWeights.SemiBold,
-        Foreground = Brushes.White,
+        Foreground = Palette.TextBrush,
         VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(10, 0, 0, 0),
+        Margin = new Thickness(8, 0, 0, 0),
     };
 
     public static readonly DependencyProperty TitleProperty = DependencyProperty.Register(
@@ -32,17 +31,9 @@ public sealed class CardHeader : StackPanel
     {
         Orientation = Orientation.Horizontal;
         Margin = new Thickness(0, 0, 0, 12);
-        var badge = new Border
-        {
-            Width = 30,
-            Height = 30,
-            CornerRadius = new CornerRadius(9),
-            Background = new LinearGradientBrush(Palette.WithAlpha(Palette.Violet, 0.85), Palette.WithAlpha(Palette.Cyan, 0.85), 45),
-            Child = _icon,
-        };
         _icon.HorizontalAlignment = HorizontalAlignment.Center;
         _icon.VerticalAlignment = VerticalAlignment.Center;
-        Children.Add(badge);
+        Children.Add(_icon);
         Children.Add(_title);
     }
 }

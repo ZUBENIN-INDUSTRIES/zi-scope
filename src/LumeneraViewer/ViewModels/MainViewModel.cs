@@ -88,6 +88,10 @@ public partial class MainViewModel : ObservableObject
         MeasurePanel = new MeasurePanelViewModel(this);
         CapturePanel = new CapturePanelViewModel(this);
         Gallery = new GalleryViewModel(this);
+        SeriesPanel = new SeriesPanelViewModel(this);
+        PrimaryCaptureCommand = new RelayCommand(ExecutePrimaryCapture, () => PrimaryTarget.CanExecute(null));
+        CapturePanel.CaptureCommand.CanExecuteChanged += (_, _) => PrimaryCaptureCommand.NotifyCanExecuteChanged();
+        SeriesPanel.CaptureStepCommand.CanExecuteChanged += (_, _) => PrimaryCaptureCommand.NotifyCanExecuteChanged();
 
         _worker = new Thread(ProcessLoop) { IsBackground = true, Name = "Обработка кадров" };
         _worker.Start();
@@ -223,6 +227,21 @@ public partial class MainViewModel : ObservableObject
     public MeasurePanelViewModel MeasurePanel { get; }
     public CapturePanelViewModel CapturePanel { get; }
     public GalleryViewModel Gallery { get; }
+    public SeriesPanelViewModel SeriesPanel { get; }
+
+    /// <summary>
+    /// Пробел и главная кнопка «Снимок»: в режиме серии — снять текущий шаг, иначе — обычный снимок.
+    /// </summary>
+    public IRelayCommand PrimaryCaptureCommand { get; }
+
+    private System.Windows.Input.ICommand PrimaryTarget =>
+        SeriesPanel.IsActive ? SeriesPanel.CaptureStepCommand : CapturePanel.CaptureCommand;
+
+    private void ExecutePrimaryCapture()
+    {
+        var target = PrimaryTarget;
+        if (target.CanExecute(null)) target.Execute(null);
+    }
 
     // ───── Для окна ─────
 

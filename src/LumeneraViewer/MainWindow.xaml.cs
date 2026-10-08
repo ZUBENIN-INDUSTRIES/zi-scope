@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -35,8 +36,74 @@ public partial class MainWindow : FluentWindow
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        Entrance.Play(Cards.Children.OfType<UIElement>());
+        SelectTab(ReadSavedTab(), animate: false);
+        _vm.SettingsReplaced += () => Dispatcher.BeginInvoke(() => SelectTab(ReadSavedTab(), animate: false));
+        _vm.SeriesPanel.PropertyChanged += (_, a) =>
+        {
+            // Серия началась — внизу карта шагов, закончилась — снова лента.
+            if (a.PropertyName == nameof(SeriesPanelViewModel.IsActive))
+                (_vm.SeriesPanel.IsActive ? BottomSeries : BottomGallery).IsChecked = true;
+        };
         await _vm.InitializeAsync();
+    }
+
+    // ───── Вкладки правой панели ─────
+
+    /// <summary>Ключ в <c>Settings.Extensions</c>: последняя открытая вкладка ("camera", "color", "scale", "series", "capture").</summary>
+    internal const string TabSettingsKey = "ui.rightTab";
+
+    private bool _selectingTab;
+
+    private string ReadSavedTab()
+    {
+        try
+        {
+            if (_vm.Settings.Extensions.TryGetValue(TabSettingsKey, out var e) && e.ValueKind == JsonValueKind.String)
+                return e.GetString() ?? "camera";
+        }
+        catch (InvalidOperationException) { }
+        return "camera";
+    }
+
+    private void SelectTab(string key, bool animate)
+    {
+        var tab = TabBar.Children.OfType<RadioButton>().FirstOrDefault(t => (string)t.Tag == key)
+                  ?? TabBar.Children.OfType<RadioButton>().First();
+        _selectingTab = !animate;
+        tab.IsChecked = true;
+        _selectingTab = false;
+        ShowPage((string)tab.Tag, (string)tab.ToolTip, animate);
+    }
+
+    private void Tab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_selectingTab || sender is not RadioButton { Tag: string key } tab) return;
+        ShowPage(key, (string)tab.ToolTip, animate: true);
+        _vm.Settings.Extensions[TabSettingsKey] = JsonSerializer.SerializeToElement(key);
+        _vm.SaveSettingsSoon();
+        _vm.IsPanelCollapsed = false;
+    }
+
+    /// <summary>Клик по уже открытой вкладке сворачивает/разворачивает панель (как в VS Code).</summary>
+    private void Tab_PreviewDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is RadioButton { IsChecked: true })
+        {
+            _vm.IsPanelCollapsed = !_vm.IsPanelCollapsed;
+            e.Handled = true;
+        }
+    }
+
+    private void ShowPage(string key, string title, bool animate)
+    {
+        TabTitle.Text = title;
+        foreach (var page in Pages.Children.OfType<FrameworkElement>())
+        {
+            var visible = (string)page.Tag == key;
+            page.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            if (visible && animate) Entrance.Play(page);
+        }
+        TabScroll.ScrollToTop();
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -70,7 +137,7 @@ public partial class MainWindow : FluentWindow
         switch (key)
         {
             case Key.Space when !ctrl:
-                if (_vm.CapturePanel.CaptureCommand.CanExecute(null)) _vm.CapturePanel.CaptureCommand.Execute(null);
+                if (_vm.PrimaryCaptureCommand.CanExecute(null)) _vm.PrimaryCaptureCommand.Execute(null);
                 break;
             case Key.F when !ctrl:
                 _vm.IsFrozen = !_vm.IsFrozen;

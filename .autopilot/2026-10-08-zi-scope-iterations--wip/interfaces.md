@@ -47,3 +47,30 @@ SeriesPanelViewModel SeriesPanel { get; }       // таск 06 (заглушка
 ## Что построено
 
 <!-- дописывает оркестратор по блоку INTERFACES из отчёта таска -->
+
+## Из таска 02 — движок глубокого цвета
+
+- `sealed record DeepColor` (init-свойства, поля по контракту) + `const int HslCount = 8`, `DeepColor WithHsl(int index, HslAdjust value)`; `Hsl` — `IReadOnlyList<HslAdjust>`, при присваивании дополняется/обрезается до 8; null у уровней/кривых → нейтраль; `IsNeutral` — `[JsonIgnore]`.
+- `ChannelLevels` и `HslAdjust` получили `IsNeutral` (у ChannelLevels ещё `static Neutral`). `ToneCurve(IReadOnlyList<CurvePoint> Points)`: `Identity`, `IsIdentity` (все точки на диагонали), `BuildLut()` (Фрич — Карлсон, сортировка, кламп концов); пустой/null → Identity.
+- `ImageAdjustments.Deep { get; init; } = DeepColor.Neutral` — **init-свойство**, позиционный конструктор прежний; менять через `with { Deep = ... }`. Null в JSON → нейтраль. Равенство DeepColor/ToneCurve поэлементное (`==` работает после JSON).
+- `ImageProcessor` — `static partial` (локальные операции в `ImageProcessor.Local.cs`), сигнатура `Apply` прежняя. Рабочие буферы размытия: 4 массива float по w·h, создаются один раз и переиспользуются.
+- Замер скорости: `$env:LV_PERF=1; dotnet test LumeneraViewer.sln -c Release --filter "Category=Perf"` (1920×1440, всё включено: Release ~54 мс, Debug ~76 мс).
+
+## Из таска 03 — модель, серия, профили
+
+- `SettingsStore(string? path = null, string? legacyPath = null)`: при path=null legacyPath = `%AppData%\LumeneraViewer\settings.json`; явный path без legacyPath — без миграции. `string? LegacyPath`, `static string AppDataFolder` (`%AppData%\ZI-scope`).
+- Первый переход на новый формат (в JSON нет `Magnifications`): живые Adjustments/ExposureMs/Gain становятся профилем `CurrentMagnification`, `ScaleBar.FixedMicrons` сбрасывается. `Presets` → `ColorProfiles` (IncludesExposure = есть ExposureMs/Gain), Presets очищается — **UI пресетов в ColorPanel теперь пуст: таск 04 переводит его на ColorProfiles**.
+- `MagnificationSettings.LoadLive`: если в профиле ExposureMs/Gain null — живые не меняются. `GetOrCreate` держит список отсортированным.
+- `ProfileFiles`: константы `ColorFormat`, `ConfigFormat`, `ColorExtension` (`.zcolor`), `ConfigExtension` (`.zscope`), `NotAProfileMessage`; принимается любая версия своего вида; `ReadConfig` проходит те же миграции, что settings.json.
+- `SeriesPlan.DefaultTemplate`. `SeriesNaming.FileName`: расширение с точкой или без; пустой шаблон → по умолчанию.
+- `SeriesSession`: `bool IsInPlan(k)`; `StepRecord.Pending`; MarkDone/MarkSkipped двигают Current, только если k == Current (к следующему Pending; после пересъёмки/вне плана — к первому Pending; ничего не осталось — Current стоит). `DoneCount` — только шаги плана; `IsComplete` — нет Pending в плане (Skipped считаются пройденными). Reset вне плана удаляет из ExtraSteps.
+- `SeriesStore`: `Format = "zi-scope-series/1"`, пути файлов относительные; нет файла → FileNotFoundException, битый → InvalidDataException; Done с пропавшим файлом → Pending (вне плана — удаляется).
+- `FrameExporter.SaveExactAsync`: непустой overlays впечатывается всегда (BurnOverlays/AlsoSaveClean игнорируются); extraMetadata → поле `"Extra"` в .json.
+
+## Из таска 01 — тема, переименование, вкладки
+
+- Ресурсы (Brush): `Zs.Window/Panel/Raised/RaisedHover/Input/Border/Text/TextSecondary/TextDisabled/Accent/AccentHover/AccentPressed/AccentSelection/Success/Warning/Error`; `Zs.Font`, `Zs.RadiusControl/RadiusPanel`. Стили: `ZsPanel, ZsGroup, ZsDivider, ZsSectionLabel, MutedText, ZsPrimaryButton, ZsKeyHint, ZsActivityTab, ZsSegment, ZsSegmentBar, StatusPanel/StatusDivider/StatusValue/StatusTag`. `Palette.*` (Color) и `Palette.*Brush` (заморожены); `Theme.Apply(Application)` в `App.OnStartup`. Эффекты Aurora/ShinyText/ClickSpark/GlowButton/SpotlightCard **удалены**; `Entrance`, `CountUpText` остались. `Palette.Cyan` — только для линий измерений.
+- Слоты: `v:MagnificationBar x:Name=MagnificationSlot` в шапке (DataContext = MainViewModel); вкладки — RadioButton с Tag `camera|color|scale|series|capture`, страницы `PageCamera…PageCapture` в `Grid Pages`; низ — RadioButton `BottomGallery/BottomSeries`, при `SeriesPanel.IsActive=true` включается `BottomSeries`. Рецепт новой вкладки: страница в `Grid Pages` + RadioButton в TabBar.
+- `MainViewModel.SeriesPanel` (`SeriesPanelViewModel`: `[ObservableProperty] bool IsActive`, `IAsyncRelayCommand CaptureStepCommand`, `MainViewModel Host`); `IRelayCommand PrimaryCaptureCommand` (IsActive ? CaptureStep : CapturePanel.Capture, CanExecute пробрасывается) — Пробел и «Снимок» идут через него.
+- Выбранная вкладка — `Settings.Extensions["ui.rightTab"]`.
+- **AssemblyName = ZI-scope ломает pack-URI `/LumeneraViewer;component/…`**: пиши относительные пути или `/ZI-scope;component/…`.

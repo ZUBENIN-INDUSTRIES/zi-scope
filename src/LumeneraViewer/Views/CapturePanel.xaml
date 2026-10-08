@@ -9,7 +9,7 @@
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
         </Style>
         <Style x:Key="Row" TargetType="Grid">
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -85,14 +85,14 @@
         </Grid>
 
         <!-- Тайм-лапс -->
-        <Border CornerRadius="10" Padding="10,8" Margin="0,4,0,0" Background="#10FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1">
+        <Border Style="{StaticResource ZsGroup}" Margin="0,4,0,0">
             <StackPanel>
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <ui:SymbolIcon Symbol="Timer24" Foreground="#06B6D4" FontSize="16" Margin="0,0,6,0"/>
+                    <ui:SymbolIcon Symbol="Timer24" Foreground="{StaticResource Zs.TextSecondary}" FontSize="16" Margin="0,0,6,0"/>
                     <TextBlock Grid.Column="1" Text="Тайм-лапс" Style="{StaticResource Label}" FontWeight="SemiBold"/>
                 </Grid>
                 <Grid Style="{StaticResource Row}" IsEnabled="{Binding IsRunning, Converter={StaticResource Equals}, ConverterParameter=False}">
@@ -120,16 +120,16 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ProgressText}" FontWeight="SemiBold" Foreground="#06B6D4" FontSize="14"/>
+                        <TextBlock Text="{Binding ProgressText}" FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}" FontSize="13"/>
                         <TextBlock Text="{Binding NextShotText}" Style="{StaticResource MutedText}" FontSize="11.5"
                                    Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>
-                    <ui:Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding ToggleTimelapseCommand}" fx:ClickSpark.IsEnabled="True">
+                    <ui:Button Grid.Column="1" Margin="8,0,0,0" Command="{Binding ToggleTimelapseCommand}">
                         <ui:Button.Style>
                             <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                                 <Setter Property="Content" Value="Старт"/>
                                 <Setter Property="Icon" Value="{ui:SymbolIcon Play24}"/>
-                                <Setter Property="Appearance" Value="Primary"/>
+                                <Setter Property="Appearance" Value="Secondary"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsRunning}" Value="True">
                                         <Setter Property="Content" Value="Стоп"/>
@@ -142,7 +142,7 @@
                     </ui:Button>
                 </Grid>
                 <ProgressBar Height="3" Margin="0,8,0,0" Minimum="0" Maximum="1" Value="{Binding ProgressFraction, Mode=OneWay}"
-                             Foreground="#7C3AED" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
+                             Foreground="{StaticResource Zs.Accent}" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
         </Border>
 

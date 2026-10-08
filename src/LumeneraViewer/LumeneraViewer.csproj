@@ -8,7 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <AssemblyName>LumeneraViewer</AssemblyName>
+    <AssemblyName>ZI-scope</AssemblyName>
+    <Product>ZI-scope</Product>
+    <AssemblyTitle>ZI-scope</AssemblyTitle>
+    <Title>ZI-scope</Title>
     <RootNamespace>LumeneraViewer</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
