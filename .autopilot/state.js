@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T18:35:16+05:00",
+  "updatedAt": "2026-10-08T18:44:04+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -50,13 +50,13 @@ window.STATE =
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-08T13:44:07+05:00",
-      "note": "3 из 8 тасков готовы (+2 по дополнениям)"
+      "note": "4 из 8 тасков готовы; волна 3 (05, 06, 07) в полёте"
     },
     {
       "id": "review",
       "status": "active",
       "startedAt": "2026-10-08T13:53:09+05:00",
-      "note": "проверено 3 из 6"
+      "note": "проверено 4 из 8"
     },
     {
       "id": "final",
@@ -196,11 +196,17 @@ window.STATE =
         "ColorPanel",
         "ConfigProfiles"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 1,
-      "startedAt": "2026-10-08T14:02:02+05:00"
+      "startedAt": "2026-10-08T14:02:02+05:00",
+      "finishedAt": "2026-10-08T18:44:04+05:00",
+      "commit": "dea8333",
+      "tests": {
+        "passed": 197,
+        "failed": 0
+      }
     },
     {
       "id": "05",
@@ -218,10 +224,11 @@ window.STATE =
         "DeepColorWindow",
         "ToneCurveEditor"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-08T18:44:04+05:00"
     },
     {
       "id": "06",
@@ -250,10 +257,11 @@ window.STATE =
         "Series UI",
         "SeriesMap"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-08T18:44:04+05:00"
     },
     {
       "id": "07",
@@ -277,10 +285,11 @@ window.STATE =
         "OverlayRenderer (сетка)",
         "csproj TFM"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 0,
+      "startedAt": "2026-10-08T18:44:04+05:00"
     },
     {
       "id": "08",
@@ -307,7 +316,7 @@ window.STATE =
   ],
   "singlePass": null,
   "tests": {
-    "passed": 195,
+    "passed": 197,
     "failed": 0
   },
   "debt": {
@@ -340,7 +349,12 @@ window.STATE =
     "UI/Converters.cs:32 — Green/Yellow/Red дублируют Palette.Success/Warning/Error",
     "MainWindow.xaml.cs ShowPage/SelectTab — (string)Tag/ToolTip бросит на странице без строкового Tag",
     "Export/FrameExporter.Save.cs — File.Delete старого .json после записи кадра может бросить, хотя кадр сохранён",
-    "Лимит API прервал таск 04 (~14:10–18:20); продолжен тем же исполнителем"
+    "Лимит API прервал таск 04 (~14:10–18:20); продолжен тем же исполнителем",
+    "Ревью 04 (крафт): правки автоэкспозиции/измерений/UI-потока/синхронизации списка увеличений сделаны оркестратором сам (нарушение правила 5 — в финальный отчёт)",
+    "Ревью 04: ScalePanel.Reload вызывается дважды (ApplyLive + SettingsReplaced); лишний StoreLive в ConfigProfilesViewModel.SaveCurrent",
+    "Ревью 04: перенос старой калибровки — только в увеличения, у которых уже есть профиль; «перенесено» определяется по совпадению мкм/px",
+    "Ревью 04: метаданные снимка — поле Objective теперь «×200»; в уведомлении «мкм/ px» переносится",
+    "Исполнитель 04 оставил вне проекта: %AppData%\\ZI-scope\\profiles\\Конфигурация 1.zscope, %TEMP%\\zs-04\\, %TEMP%\\zs-04-backup\\ — решение за пользователем"
   ],
   "reviewers": {
     "manifestSpec": "a5b01cc46c7d842fd",
@@ -348,8 +362,10 @@ window.STATE =
   },
   "blind": null,
   "resumeNotes": {
-    "ticket04": "в работе преемник (agent a8b180c28b59cda39) после handoff-04-1.md; дальше: ревью 04 → коммит → волна 3: 05, 06, 07 параллельно → ревью → 08 (Gemini+слева) → финал (слепая приёмка, CLAUDE.md, ADR, отчёт)",
+    "ticket04": "готов (dea8333). Волна 3: 05, 06, 07 в полёте → ревью каждого → коммит → 08 (Gemini+слева) → финал",
     "reviewers": "manifestSpec a5b01cc46c7d842fd, craft a37291edf1fbf8844 (если не отвечают — новые)",
-    "userSettingsNote": "в %AppData%\\LumeneraViewer\\settings.json тестовые данные (PreferDemo, 10x 0.821) — пользователь не решил удалять; не трогать"
+    "userSettingsNote": "в %AppData%\\LumeneraViewer\\settings.json тестовые данные (PreferDemo, 10x 0.821) — пользователь не решил удалять; не трогать",
+    "projectOnly": "требование пользователя: проверочные файлы только в папке проекта (.autopilot/<прогон>/scratch/), Документы не трогать",
+    "wave3": "агенты: 05 a02e607afd313e7a0, 06 a4854d2c3a5782d3c, 07 a045fef1f94cabaf0"
   }
 }
