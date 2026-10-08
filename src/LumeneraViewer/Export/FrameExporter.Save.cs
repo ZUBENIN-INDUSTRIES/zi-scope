@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -41,7 +41,7 @@ public sealed partial class FrameExporter : IDisposable
             Folder = o.Folder, Format = o.Format, JpegQuality = Math.Clamp(o.JpegQuality, 1, 100), TiffLzw = o.TiffLzw,
             BurnOverlays = o.BurnOverlays, AlsoSaveClean = o.AlsoSaveClean, WriteMetadata = o.WriteMetadata, Prefix = o.Prefix,
         };
-        var burn = opt.BurnOverlays && overlays is { IsEmpty: false } ? overlays with { PendingLine = null } : null;
+        var burn = opt.BurnOverlays ? overlays?.ForExport() : null;   // сетка и перекрестие — только на экране
         return _worker.Run(() => Save(processed, burn, meta, opt, seriesIndex));
     }
 
@@ -65,7 +65,7 @@ public sealed partial class FrameExporter : IDisposable
         };
         var path = Path.GetFullPath(fullPath);
         var extra = extraMetadata is null ? null : new Dictionary<string, string>(extraMetadata);
-        var burn = overlays is { IsEmpty: false } ? overlays with { PendingLine = null } : null;
+        var burn = overlays?.ForExport();   // сетка и перекрестие — только на экране
         return _worker.Run(() => SaveExact(processed, burn, meta, opt, path, overwrite, extra));
     }
 

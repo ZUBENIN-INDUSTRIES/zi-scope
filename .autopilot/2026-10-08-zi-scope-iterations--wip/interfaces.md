@@ -82,3 +82,28 @@ SeriesPanelViewModel SeriesPanel { get; }       // таск 06 (заглушка
 - **Цвет для текущего увеличения:** просто `host.Adjustments = adj` (например `adj with { Deep = ... }`) — в профиль сохраняется автоматически (SaveSettingsSoon/троттлинг вызывают `MagnificationSettings.StoreLive`). Явно — `MagnificationSettings.StoreLive(host.Settings)`.
 - `AppSettings.CopyFrom(AppSettings)`; `MagnificationSettings.Remove(s, mag)`, `IsValid(mag)`, `MinMagnification=1`, `MaxMagnification=10000`; `OverlayState.CurrentMicronsPerPixel(s)` — из профиля текущего увеличения.
 - `ScalePanelViewModel.Reload()`; `ColorPanelViewModel.Build` сохраняет `Adjustments.Deep`; `UI.ProfileFileFilters { Color, Config, SafeName(string?), Describe(Exception) }`; `ConfigProfilesViewModel.ShowAsync(MainViewModel)`.
+
+## Из таска 05 — окно «Глубокие настройки цвета»
+
+- `DeepColorWindow`: `static IRelayCommand<object?> OpenCommand` (параметр — `MainViewModel` или `ColorPanelViewModel`) · `static void ShowFor(MainViewModel)` — немодальное, одно на хост; позиция — `Settings.Extensions["ui.deepColorWindow"] = {Left,Top,Width,Height}`.
+- `DeepColorViewModel(MainViewModel) : IDisposable` (+ `HslRowViewModel`) — пишет `host.Adjustments` не чаще ~30 Гц.
+- `UI.Controls.ToneCurveEditor : FrameworkElement { ToneCurve Curve (TwoWay); Histogram? Histogram; int Channel /*0 общий, 1–3 R,G,B*/ }` · `static class CurveEditing { MaxPoints=12; MinGap=2; Sorted; TryAdd; TryRemove; Move }`.
+- Цвет трека HSL — переопределение ключей WPF-UI внутри `LabeledSlider` в DeepColorWindow.xaml: `SliderTrackFill`, `SliderTrackFillPointerOver`, `SliderThumbBackground`, `SliderThumbBackgroundPointerOver`, `AccentFillColorDefaultBrush` (таску 08: при смене палитры не сломать).
+- `Palette.ChannelMaster/ChannelRed/ChannelGreen/ChannelBlue` (Color), `Palette.Channels` (0 общий, 1–3 R,G,B), `Palette.HslSectors` (8, порядок DeepColor.Hsl) — единый источник цветов каналов; `HistogramView` ещё задаёт свои RGB — перевести на `Palette.Channel*` (таск 08). `DeepColorViewModel.Flush()`; при выходе — хук WM_CLOSE главного окна (Flush + позиция).
+
+## Из таска 07 — калибровка по снимку, таблица мкм/px
+
+- Папка `Calibration/`, **namespace `LumeneraViewer.ImageCalibration`** (не `.Calibration` — перекрыло бы `Overlays.Calibration`).
+- `enum LineColor{Blue,Yellow,White,Black,Red}` · `record DetectedLine(Point A, Point B, double LengthPx, LineColor Color, Rect TextRegionAbove)` · `ScaleLineDetector.Detect(byte[] bgr,int w,int h)` / `Detect(BitmapSource)` → `DetectedLine?`, `ToBgr24(BitmapSource)`.
+- `enum ScaleUnit{Micrometers,Millimeters}` · `record ScaleReading(double Value, ScaleUnit Unit){ double Microns }` · `ScaleTextParser.Parse(string?)` → `ScaleReading?` · `record ScaleTextResult(ScaleReading? Reading, string RawText, bool OcrAvailable)` · `ScaleTextRecognizer.RecognizeAsync(bgr,w,h, DetectedLine|Rect, LineColor?)`, `CreateEngines()` (английский → язык профиля → русский; русский читает «µm» как «рт»), `CreateEngine()`, `UnavailableMessage`; парсер понимает «pm»/«рт» как µm.
+- `enum PixelSizeSource{None,Calibrated,Derived}` · `record PixelSizeRow(int Magnification, double? MicronsPerPixel, PixelSizeSource Source, int? DerivedFrom)` · `PixelSizeTable.Build(IEnumerable<(int,double?)>)`, `Derive(k,from,to)`, `ToCameraPixels(k,imageW,cameraW)`.
+- `OverlayState.ForExport()` → `OverlayState?` (без сетки, перекрестия, PendingLine; null — нечего впечатывать) — **экспорт всегда через него** (G01). `MainViewModel.SaveSettingsNow()` → bool. `ScalePanelViewModel.SaveCalibration(int mag, double k)` → bool, `PixelSizes`, `AcceptDerivedCommand`, `CalibrateFromImageCommand`. `CalibrationFromImageWindow.ShowForAsync(MainViewModel, string path)` → `Task<bool>`, `PickAndShow(MainViewModel)`.
+- TargetFramework приложения и тестов — `net8.0-windows10.0.19041.0`.
+
+## Из таска 06 — серия (UI и прогон)
+
+- `interface ISeriesEnvironment { int CurrentMagnification {get;set;}; bool IsCalibrated(int); string FileExtension; bool FileExists(string); void DeleteFile(string); Task<bool> ConfirmOverwriteAsync(IReadOnlyList<string>); void Persist(SeriesSession) }` — шов для тестов.
+- `delegate Task<string> SaveFrameKind(FrameKind kind, string fullPath, bool overwrite)` · `enum StepCaptureResult { Captured, MagnificationSwitched, NeedsCalibration, Cancelled }`.
+- `sealed class SeriesRunner(SeriesSession, ISeriesEnvironment) { Session; Plan; Current; SeriesStepKey? LastCaptured; event Action? Changed; bool NeedsScale; CanCaptureFull(k); IsPartial(k) /*Done && Files < Kinds*/; KindsFor(bool cleanOnly); PathsFor(k, cleanOnly); bool SyncMagnification(); Task<StepCaptureResult> CaptureAsync(SaveFrameKind, bool cleanOnly=false); Reshoot(k); bool ReshootPrevious(); Delete(k); Skip(k); MakeCurrent(k); Move(dGroup, dSample) }`.
+- `SeriesPanelViewModel`: `IsActive`, `IsDesigning`, `SeriesRunner? Runner`, `CaptureStepCommand` (CanExecute=false без калибровки), `CaptureCleanCommand`, `Steps`, `CurrentItem`, `PromptMagnification`/`HasPrompt`/`PromptText`, `BuildPlan()`. Ctrl+Z — PreviewKeyDown окна (переснять предыдущий). Метаданные .json шага: `Extra` = Series, Group, Sample, Magnification, Kind, KindName, Decoration.
+- Не сделано (зона MainWindow): плашка «Переключите на ×M» на самом превью; подпись главной кнопки во время серии («Снимок» → «Снять шаг») — кандидаты для таска 08.

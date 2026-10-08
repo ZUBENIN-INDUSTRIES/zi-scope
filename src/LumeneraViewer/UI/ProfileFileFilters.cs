@@ -10,6 +10,9 @@ public static class ProfileFileFilters
         $"Профиль цвета ZI-scope (*{ProfileFiles.ColorExtension})|*{ProfileFiles.ColorExtension}|Все файлы (*.*)|*.*";
     public static readonly string Config =
         $"Конфигурация ZI-scope (*{ProfileFiles.ConfigExtension})|*{ProfileFiles.ConfigExtension}|Все файлы (*.*)|*.*";
+    /// <summary>Снимки для калибровки по снимку (форматы, которые читает WPF).</summary>
+    public const string Images =
+        "Изображения (*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp|Все файлы (*.*)|*.*";
 
     /// <summary>Имя профиля → допустимое имя файла (недопустимые символы → «_»).</summary>
     public static string SafeName(string? name)

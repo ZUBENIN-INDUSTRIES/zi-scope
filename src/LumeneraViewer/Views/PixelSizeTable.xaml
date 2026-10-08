@@ -1,0 +1,69 @@
+<UserControl x:Class="LumeneraViewer.Views.PixelSizeTable"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <!-- DataContext — ScalePanelViewModel. Таблица размера пикселя по увеличениям (G05). -->
+    <Border Style="{StaticResource ZsGroup}">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <ui:SymbolIcon Symbol="TableSimple24" Foreground="{StaticResource Zs.TextSecondary}" Margin="0,0,6,0"/>
+                <TextBlock Text="Размер пикселя по увеличениям" FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Grid Margin="0,0,0,4" TextElement.Foreground="{StaticResource Zs.TextSecondary}" TextElement.FontSize="11.5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="56"/>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Увелич."/>
+                <TextBlock Grid.Column="1" Text="мкм/px"/>
+                <TextBlock Grid.Column="2" Text="Источник"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding PixelSizes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="{StaticResource Zs.Border}" BorderThickness="0,1,0,0" Padding="0,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="{Binding MagnificationText}" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource Zs.Accent}"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Grid.Column="1" Text="{Binding ValueText}" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center" FontFamily="Consolas"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SourceText}" Style="{StaticResource MutedText}" VerticalAlignment="Center"
+                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding SourceText}"/>
+                                <!-- Кнопка — второй строкой под значением: в одной строке с «пересчёт от ×M» не помещается -->
+                                <ui:Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,4,0,2" HorizontalAlignment="Left"
+                                           Content="Принять пересчёт" Appearance="Secondary" Padding="10,3" FontSize="11.5"
+                                           Icon="{ui:SymbolIcon Checkmark24}"
+                                           ToolTip="Записать пересчитанное значение как калибровку этого увеличения"
+                                           Visibility="{Binding CanAccept, Converter={StaticResource BoolToVis}}"
+                                           Command="{Binding DataContext.AcceptDerivedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                           CommandParameter="{Binding}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Style="{StaticResource MutedText}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Text="Без калибровки значение пересчитывается от ближайшего откалиброванного: мкм/px₂ = мкм/px₁ × M₁ / M₂."/>
+        </StackPanel>
+    </Border>
+</UserControl>

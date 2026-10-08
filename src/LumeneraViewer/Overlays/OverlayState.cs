@@ -44,6 +44,13 @@ public sealed record OverlayState
     /// <summary>Нечего рисовать (экспорт может не впечатывать пустой оверлей).</summary>
     public bool IsEmpty => !ShowsScaleBar && Measurements.Count == 0 && PendingLine is null && !Crosshair && !Grid;
 
+    /// <summary>
+    /// То, что впечатывается в файл: сетка, перекрестие и проводимая линия — только для экрана (G01).
+    /// null — впечатывать нечего.
+    /// </summary>
+    public OverlayState? ForExport()
+        => (this with { PendingLine = null, Crosshair = false, Grid = false }) is { IsEmpty: false } e ? e : null;
+
     /// <summary>Мкм/px профиля текущего увеличения (null — не откалиброван или профиля нет).</summary>
     public static double? CurrentMicronsPerPixel(AppSettings s)
         => MagnificationSettings.CurrentMicronsPerPixel(s) is > 0 and var k ? k : null;

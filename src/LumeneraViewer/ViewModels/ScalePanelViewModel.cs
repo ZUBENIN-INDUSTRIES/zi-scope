@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LumeneraViewer.ImageCalibration;
 using LumeneraViewer.Overlays;
 using LumeneraViewer.Settings;
 using Wpf.Ui.Controls;
@@ -34,8 +35,11 @@ public partial class ScalePanelViewModel : ObservableObject
         Host = host;
         _manualLengthText = FormatManual();
         ReloadLegacy();
+        RefreshPixelSizes();
         host.PropertyChanged += OnHostChanged;
         host.SettingsReplaced += Reload;
+        if (host.AvailableMagnifications is System.Collections.Specialized.INotifyCollectionChanged mags)
+            mags.CollectionChanged += (_, _) => RefreshPixelSizes();
     }
 
     /// <summary>
@@ -46,6 +50,7 @@ public partial class ScalePanelViewModel : ObservableObject
     {
         _manualLengthText = FormatManual();
         ReloadLegacy();
+        RefreshPixelSizes();
         OnPropertyChanged(string.Empty);
         RaiseChanged(save: false);
     }
@@ -53,7 +58,7 @@ public partial class ScalePanelViewModel : ObservableObject
     private void OnHostChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.ActiveTool)) OnPropertyChanged(nameof(IsCalibrating));
-        if (e.PropertyName == nameof(MainViewModel.CurrentMagnification)) OnPropertyChanged(nameof(MagnificationText));
+        if (e.PropertyName == nameof(MainViewModel.CurrentMagnification)) { OnPropertyChanged(nameof(MagnificationText)); RefreshPixelSizes(); }
     }
 
     /// <summary>Текущее состояние оверлея — для впечатывания в файл (вызывать в UI-потоке).</summary>
@@ -85,7 +90,46 @@ public partial class ScalePanelViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCalibrated));
         OnPropertyChanged(nameof(CalibrationText));
         OnPropertyChanged(nameof(ScaleBarEnabled));
+        RefreshPixelSizes();
         Host.NotifyCalibrationChanged();
+    }
+
+    /// <summary>
+    /// Записать калибровку в профиль увеличения навсегда: профиль, список в шапке, превью и немедленная запись
+    /// настроек на диск (G04). Зовут калибровка по снимку и «Принять пересчёт» (UI-поток).
+    /// </summary>
+    public bool SaveCalibration(int magnification, double micronsPerPixel)
+    {
+        if (!MagnificationSettings.IsValid(magnification) || !(micronsPerPixel > 0) || double.IsInfinity(micronsPerPixel)) return false;
+        MagnificationSettings.GetOrCreate(S, magnification).MicronsPerPixel = micronsPerPixel;
+        Host.AddMagnification(magnification);
+        ReloadLegacy();
+        OnCalibrationChanged();
+        RaiseChanged(save: false);
+        var saved = Host.SaveSettingsNow();
+        Host.Notify("Увеличение откалибровано", $"×{magnification}: {FormatMpp(micronsPerPixel)} мкм/px", NotifyKind.Success);
+        return saved;
+    }
+
+    // ───── Калибровка по снимку и таблица размера пикселя (G02–G05) ─────
+
+    [RelayCommand]
+    private void CalibrateFromImage() => Views.CalibrationFromImageWindow.PickAndShow(Host);
+
+    /// <summary>Таблица «Увеличение · мкм/px · Источник» по всем профилям.</summary>
+    public ObservableCollection<PixelSizeRowItem> PixelSizes { get; } = new();
+
+    private void RefreshPixelSizes()
+    {
+        var rows = PixelSizeTable.Build((S.Magnifications ?? new()).Select(m => (m.Magnification, m.MicronsPerPixel)));
+        PixelSizes.Clear();
+        foreach (var r in rows) PixelSizes.Add(new PixelSizeRowItem(r, r.Magnification == S.CurrentMagnification));
+    }
+
+    [RelayCommand]
+    private void AcceptDerived(PixelSizeRowItem? row)
+    {
+        if (row is { CanAccept: true, Row.MicronsPerPixel: { } k }) SaveCalibration(row.Row.Magnification, k);
     }
 
     // ───── Старые калибровки объективов (история 10) ─────
@@ -279,6 +323,22 @@ public partial class ScalePanelViewModel : ObservableObject
 
     private Task<string?> AskTextAsync(string title, string prompt, string initial, string ok)
         => Dialogs.AskTextAsync(Host.Owner, title, prompt, initial, ok);
+}
+
+/// <summary>Строка таблицы размера пикселя для разметки.</summary>
+public sealed class PixelSizeRowItem(PixelSizeRow row, bool isCurrent)
+{
+    public PixelSizeRow Row { get; } = row;
+    public bool IsCurrent { get; } = isCurrent;
+    public string MagnificationText => "×" + Row.Magnification.ToString(CultureInfo.InvariantCulture);
+    public string ValueText => Row.MicronsPerPixel is { } k ? k.ToString(k < 0.01 ? "0.00000" : "0.0000", CultureInfo.InvariantCulture) : "—";
+    public string SourceText => Row.Source switch
+    {
+        PixelSizeSource.Calibrated => "калибровка",
+        PixelSizeSource.Derived => $"пересчёт от ×{Row.DerivedFrom}",
+        _ => "нет данных",
+    };
+    public bool CanAccept => Row.Source == PixelSizeSource.Derived;
 }
 
 /// <summary>Старая калибровка объектива и увеличение, в которое её перенести.</summary>
