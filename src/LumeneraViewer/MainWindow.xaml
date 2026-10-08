@@ -96,6 +96,9 @@
                                 <MenuItem Header="Дополнительно…" Command="{Binding ShowAdvancedCommand}">
                                     <MenuItem.Icon><ui:SymbolIcon Symbol="Settings24"/></MenuItem.Icon>
                                 </MenuItem>
+                                <MenuItem Header="Глубокие настройки цвета…" Command="{x:Static v:DeepColorWindow.OpenCommand}" CommandParameter="{Binding}">
+                                    <MenuItem.Icon><ui:SymbolIcon Symbol="ColorLine24"/></MenuItem.Icon>
+                                </MenuItem>
                                 <MenuItem Header="Профили конфигурации…" Command="{Binding ShowConfigProfilesCommand}">
                                     <MenuItem.Icon><ui:SymbolIcon Symbol="DocumentSettings20"/></MenuItem.Icon>
                                 </MenuItem>
@@ -264,7 +267,7 @@
                             </RadioButton>
                             <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="color" ToolTip="Цвет" AutomationProperties.Name="Цвет"
                                          Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">
-                                <ui:SymbolIcon Symbol="Color24" FontSize="20"/>
+                                <ui:SymbolIcon Symbol="ColorLine24" FontSize="20"/>
                             </RadioButton>
                             <RadioButton Style="{StaticResource ZsActivityTab}" GroupName="Tabs" Tag="scale" ToolTip="Масштаб и измерения" AutomationProperties.Name="Масштаб и измерения"
                                          Checked="Tab_Checked" PreviewMouseLeftButtonDown="Tab_PreviewDown">

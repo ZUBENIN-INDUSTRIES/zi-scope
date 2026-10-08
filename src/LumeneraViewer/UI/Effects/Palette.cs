@@ -46,6 +46,22 @@ public static class Palette
     /// </summary>
     public static readonly Color Cyan = Color.FromRgb(0x06, 0xB6, 0xD4);
 
+    // ── Цвета каналов и секторов (гистограммы, кривая, HSL) ──
+    /// <summary>Общий канал (яркость) на графиках.</summary>
+    public static readonly Color ChannelMaster = Color.FromRgb(0xE5, 0xE7, 0xEB);
+    public static readonly Color ChannelRed = Color.FromRgb(0xF8, 0x71, 0x71);
+    public static readonly Color ChannelGreen = Color.FromRgb(0x4A, 0xDE, 0x80);
+    public static readonly Color ChannelBlue = Color.FromRgb(0x60, 0xA5, 0xFA);
+    /// <summary>Каналы по индексу: 0 — общий, 1 — R, 2 — G, 3 — B.</summary>
+    public static readonly IReadOnlyList<Color> Channels = [ChannelMaster, ChannelRed, ChannelGreen, ChannelBlue];
+
+    /// <summary>8 секторов HSL в порядке DeepColor.Hsl: красный, оранжевый, жёлтый, зелёный, голубой, синий, фиолетовый, пурпурный.</summary>
+    public static readonly IReadOnlyList<Color> HslSectors =
+    [
+        Color.FromRgb(0xEF, 0x44, 0x44), Color.FromRgb(0xF9, 0x73, 0x16), Color.FromRgb(0xEA, 0xB3, 0x08), Color.FromRgb(0x22, 0xC5, 0x5E),
+        Color.FromRgb(0x06, 0xB6, 0xD4), Color.FromRgb(0x3B, 0x82, 0xF6), Color.FromRgb(0x8B, 0x5C, 0xF6), Color.FromRgb(0xD9, 0x46, 0xEF),
+    ];
+
     // ── Готовые кисти (заморожены, можно из любого потока) ──
     public static readonly SolidColorBrush WindowBrush = Frozen(Window);
     public static readonly SolidColorBrush PanelBrush = Frozen(Panel);
