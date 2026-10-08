@@ -2,9 +2,207 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
-    <!-- DataContext — SeriesPanelViewModel. Заглушка: вкладку наполняет таск 06. -->
-    <StackPanel Margin="0,24,0,0" HorizontalAlignment="Center">
-        <ui:SymbolIcon Symbol="Grid24" FontSize="28" Foreground="{StaticResource Zs.TextDisabled}" HorizontalAlignment="Center"/>
-        <TextBlock Text="Серии появятся здесь" Style="{StaticResource MutedText}" Margin="0,10,0,0" HorizontalAlignment="Center"/>
-    </StackPanel>
+    <!-- DataContext — SeriesPanelViewModel. Конструктор серии (серии нет) или прогон (серия идёт). -->
+    <UserControl.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource Zs.Text}"/>
+        </Style>
+        <Style x:Key="Small" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="MinWidth" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="0,10,0,0">
+        <!-- ═════ Конструктор ═════ -->
+        <StackPanel Visibility="{Binding IsDesigning, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="НОВАЯ СЕРИЯ" Style="{StaticResource ZsSectionLabel}"/>
+
+            <TextBlock Text="Название" Style="{StaticResource MutedText}" Margin="0,4,0,4"/>
+            <ui:TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False"/>
+
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Групп" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                    <ui:NumberBox Value="{Binding Groups, UpdateSourceTrigger=PropertyChanged}" Minimum="1" Maximum="999"
+                                  SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Образцов в группе" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                    <ui:NumberBox Value="{Binding Samples, UpdateSourceTrigger=PropertyChanged}" Minimum="1" Maximum="999"
+                                  SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Text="Увеличения" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <ItemsControl ItemsSource="{Binding MagOptions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Content="{Binding Text}" IsChecked="{Binding IsChecked}" MinWidth="0" Margin="0,0,12,2"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Text="{Binding CustomMagText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Своё увеличение, например 400"
+                            ClearButtonEnabled="False"/>
+                <ui:Button Grid.Column="1" Margin="6,0,0,0" Content="Добавить" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddMagnificationCommand}"/>
+            </Grid>
+
+            <TextBlock Text="Виды кадра (номер — последняя цифра имени)" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <ItemsControl ItemsSource="{Binding Kinds}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:NumberBox Value="{Binding Number, UpdateSourceTrigger=PropertyChanged}" Minimum="1" Maximum="999" SmallChange="1"
+                                          MaxDecimalPlaces="0" ClearButtonEnabled="False" SpinButtonPlacementMode="Hidden" ToolTip="Номер вида"/>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <ui:TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding DecorationOptions}" SelectedItem="{Binding Decoration}" DisplayMemberPath="Name"/>
+                            </StackPanel>
+                            <ui:Button Grid.Column="2" Margin="6,0,0,0" VerticalAlignment="Top" Icon="{ui:SymbolIcon Dismiss16}" ToolTip="Удалить вид"
+                                       Command="{Binding DataContext.RemoveKindCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                       CommandParameter="{Binding}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ui:Button Content="Добавить вид" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddKindCommand}" HorizontalAlignment="Left"/>
+
+            <TextBlock Text="Порядок обхода" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <RadioButton Content="Образец за образцом (все увеличения подряд)" IsChecked="{Binding OrderBySample}" GroupName="SeriesOrder"/>
+            <RadioButton Content="По увеличениям (меньше перестановок объектива)" GroupName="SeriesOrder"
+                         IsChecked="{Binding OrderBySample, Converter={StaticResource Equals}, ConverterParameter=False, Mode=OneWay}"/>
+
+            <TextBlock Text="Шаблон имени: {group} {sample} {mag} {kind} {series}" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <ui:TextBox Text="{Binding Template, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False"/>
+
+            <TextBlock Text="Формат файла" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat}" DisplayMemberPath="Name"/>
+
+            <TextBlock Text="Папка серии" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Text="{Binding Folder, UpdateSourceTrigger=LostFocus}" ToolTip="{Binding Folder}" ClearButtonEnabled="False"/>
+                <ui:Button Grid.Column="1" Margin="6,0,0,0" Icon="{ui:SymbolIcon FolderOpen24}" ToolTip="Выбрать папку" Command="{Binding BrowseFolderCommand}"/>
+            </Grid>
+
+            <Border Style="{StaticResource ZsGroup}" Margin="0,12,0,0">
+                <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Label}" TextWrapping="Wrap"/>
+            </Border>
+
+            <Button Style="{StaticResource ZsPrimaryButton}" Margin="0,12,0,0" Command="{Binding StartSeriesCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="16" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Начать серию" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <ui:Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Открыть серию…" Icon="{ui:SymbolIcon Folder24}"
+                       Command="{Binding OpenSeriesCommand}"/>
+        </StackPanel>
+
+        <!-- ═════ Прогон ═════ -->
+        <StackPanel Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="{Binding SeriesTitle}" Style="{StaticResource ZsSectionLabel}" TextTrimming="CharacterEllipsis"/>
+
+            <Border Style="{StaticResource ZsGroup}" BorderBrush="{StaticResource Zs.Accent}" BorderThickness="1" Margin="0,4,0,0">
+                <StackPanel>
+                    <TextBlock Text="Текущий шаг" Style="{StaticResource MutedText}"/>
+                    <TextBlock Text="{Binding CurrentTitle}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}"
+                               TextWrapping="Wrap" Margin="0,2,0,2"/>
+                    <TextBlock Text="{Binding CurrentStateText}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                    <ProgressBar Value="{Binding ProgressFraction, Mode=OneWay}" Maximum="1" Height="4" Margin="0,10,0,4"/>
+                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Label}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Просьба переключить микроскоп -->
+            <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="8" Background="{StaticResource Zs.AccentSelection}"
+                    BorderBrush="{StaticResource Zs.Accent}" BorderThickness="1"
+                    Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <ui:SymbolIcon Symbol="Microscope24" FontSize="26" Foreground="{StaticResource Zs.Accent}" Margin="0,0,10,0" VerticalAlignment="Top"/>
+                    <TextBlock Text="{Binding PromptText}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource Zs.Text}"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Нет калибровки -->
+            <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="8" BorderBrush="{StaticResource Zs.Warning}" BorderThickness="1"
+                    Visibility="{Binding NeedsCalibration, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource Zs.Warning}" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                    <TextBlock Text="{Binding CalibrationHint}" TextWrapping="Wrap" Style="{StaticResource Label}"/>
+                </DockPanel>
+            </Border>
+
+            <Button Style="{StaticResource ZsPrimaryButton}" Height="46" Margin="0,12,0,0" Command="{Binding CaptureStepCommand}" ToolTip="Снять шаг (Пробел)">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="18" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Снять шаг" FontSize="15" VerticalAlignment="Center"/>
+                    <Border Style="{StaticResource ZsKeyHint}">
+                        <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>
+                    </Border>
+                </StackPanel>
+            </Button>
+            <ui:Button Margin="0,6,0,0" HorizontalAlignment="Stretch" Content="Снять без масштаба" Command="{Binding CaptureCleanCommand}"
+                       ToolTip="Сохранить только виды без оформления; шаг будет «снят частично»"
+                       Visibility="{Binding NeedsCalibration, Converter={StaticResource BoolToVis}}"/>
+
+            <TextBlock Text="ШАГ" Style="{StaticResource ZsSectionLabel}" Margin="0,14,0,4"/>
+            <WrapPanel>
+                <ui:Button Style="{StaticResource Small}" Content="Переснять" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ReshootCommand}"
+                           ToolTip="Следующее «Снять шаг» перезапишет файлы этого шага (Ctrl+Z — переснять предыдущий)"/>
+                <ui:Button Style="{StaticResource Small}" Content="Удалить снимки" Icon="{ui:SymbolIcon Delete24}" Command="{Binding DeleteStepCommand}"/>
+                <ui:Button Style="{StaticResource Small}" Content="Пропустить" Command="{Binding SkipCommand}"/>
+                <ui:Button Style="{StaticResource Small}" Content="Изменить номер…" Icon="{ui:SymbolIcon Rename24}" Command="{Binding RenumberCommand}"/>
+            </WrapPanel>
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <ui:Button Style="{StaticResource Small}" Content="◀" Command="{Binding PrevGroupCommand}" ToolTip="Предыдущая группа"/>
+                    <TextBlock Text="Группа" Style="{StaticResource Label}" Margin="0,0,6,6"/>
+                    <ui:Button Style="{StaticResource Small}" Content="▶" Command="{Binding NextGroupCommand}" ToolTip="Следующая группа"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Style="{StaticResource Small}" Content="◀" Command="{Binding PrevSampleCommand}" ToolTip="Предыдущий образец"/>
+                    <TextBlock Text="Образец" Style="{StaticResource Label}" Margin="0,0,6,6"/>
+                    <ui:Button Style="{StaticResource Small}" Content="▶" Command="{Binding NextSampleCommand}" ToolTip="Следующий образец"/>
+                </StackPanel>
+            </Grid>
+            <TextBlock Text="Любой шаг — клик по нему на карте внизу, правая кнопка — действия с шагом."
+                       Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+            <TextBlock Text="СЕРИЯ" Style="{StaticResource ZsSectionLabel}" Margin="0,14,0,4"/>
+            <WrapPanel>
+                <ui:Button Style="{StaticResource Small}" Content="Открыть папку" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenSeriesFolderCommand}"/>
+                <ui:Button Style="{StaticResource Small}" Content="Завершить серию" Icon="{ui:SymbolIcon Stop24}" Command="{Binding FinishSeriesCommand}"
+                           ToolTip="Серия сохранена в своей папке; продолжить можно через «Открыть серию…»"/>
+            </WrapPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>
