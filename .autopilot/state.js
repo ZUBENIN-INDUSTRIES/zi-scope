@@ -11,7 +11,7 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T13:59:38+05:00",
+  "updatedAt": "2026-10-08T18:35:16+05:00",
   "finishedAt": null,
   "stages": [
     {
@@ -44,18 +44,19 @@ window.STATE =
       "status": "done",
       "startedAt": "2026-10-08T13:44:07+05:00",
       "finishedAt": "2026-10-08T13:44:07+05:00",
-      "note": "6 тасков, ярус T2, 3 волны"
+      "note": "8 тасков, ярус T2, 4 волны (07–08 — дополнения пользователя)"
     },
     {
       "id": "build",
       "status": "active",
       "startedAt": "2026-10-08T13:44:07+05:00",
-      "note": "1 из 6 тасков готов"
+      "note": "3 из 8 тасков готовы (+2 по дополнениям)"
     },
     {
       "id": "review",
       "status": "active",
-      "startedAt": "2026-10-08T13:53:09+05:00"
+      "startedAt": "2026-10-08T13:53:09+05:00",
+      "note": "проверено 3 из 6"
     },
     {
       "id": "final",
@@ -63,9 +64,9 @@ window.STATE =
     }
   ],
   "requirements": {
-    "total": 25,
+    "total": 32,
     "done": 0,
-    "inTicket": 24,
+    "inTicket": 31,
     "inSpec": 1,
     "placeholder": 0,
     "deferred": 0,
@@ -92,11 +93,17 @@ window.STATE =
         "publish.ps1",
         "README"
       ],
-      "status": "review",
+      "status": "done",
       "retries": 0,
       "repairs": 0,
       "handoffs": 0,
-      "startedAt": "2026-10-08T13:44:07+05:00"
+      "startedAt": "2026-10-08T13:44:07+05:00",
+      "finishedAt": "2026-10-08T14:02:02+05:00",
+      "commit": "1336cfd",
+      "tests": {
+        "passed": 195,
+        "failed": 0
+      }
     },
     {
       "id": "02",
@@ -152,14 +159,20 @@ window.STATE =
         "Series/",
         "Export/SaveExact"
       ],
-      "status": "repair",
+      "status": "done",
       "retries": 0,
       "repairs": 1,
       "handoffs": 0,
       "startedAt": "2026-10-08T13:44:07+05:00",
       "repairFindings": [
         "решение оркестратора (не BLOCKING, но под ними встанет UI серии): тип исключения при пропавшей папке, проверка format, дубли увеличений, перенос пресетов без потерь, повторная миграция, старый .json при перезаписи"
-      ]
+      ],
+      "finishedAt": "2026-10-08T14:02:02+05:00",
+      "commit": "1c47425",
+      "tests": {
+        "passed": 195,
+        "failed": 0
+      }
     },
     {
       "id": "04",
@@ -183,10 +196,11 @@ window.STATE =
         "ColorPanel",
         "ConfigProfiles"
       ],
-      "status": "pending",
+      "status": "in-progress",
       "retries": 0,
       "repairs": 0,
-      "handoffs": 0
+      "handoffs": 1,
+      "startedAt": "2026-10-08T14:02:02+05:00"
     },
     {
       "id": "05",
@@ -240,10 +254,62 @@ window.STATE =
       "retries": 0,
       "repairs": 0,
       "handoffs": 0
+    },
+    {
+      "id": "07",
+      "title": "Калибровка по снимку, таблица мкм/px, сетка только на экране",
+      "requirements": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05"
+      ],
+      "blockedBy": [
+        "04"
+      ],
+      "wave": 3,
+      "zone": [
+        "Calibration/",
+        "CalibrationFromImageWindow",
+        "PixelSizeTable",
+        "ScalePanel",
+        "OverlayRenderer (сетка)",
+        "csproj TFM"
+      ],
+      "status": "pending",
+      "retries": 0,
+      "repairs": 0,
+      "handoffs": 0
+    },
+    {
+      "id": "08",
+      "title": "Цвета тёмного Gemini и меню слева",
+      "requirements": [
+        "G06",
+        "G07"
+      ],
+      "blockedBy": [
+        "05",
+        "06",
+        "07"
+      ],
+      "wave": 4,
+      "zone": [
+        "UI/Effects/",
+        "MainWindow (раскладка)"
+      ],
+      "status": "pending",
+      "retries": 0,
+      "repairs": 0,
+      "handoffs": 0
     }
   ],
   "singlePass": null,
-  "tests": null,
+  "tests": {
+    "passed": 195,
+    "failed": 0
+  },
   "debt": {
     "placeholders": [
       "R12.1 — какая старая калибровка какому увеличению: назначает пользователь"
@@ -269,11 +335,21 @@ window.STATE =
     "Settings/SettingsStore.cs Migrate — пресет с именем, совпадающим с профилем цвета, отбрасывается",
     "Атомарная запись (tmp→rename) повторена в ProfileFiles, SeriesStore и FrameExporter; Flush(true) только в FrameExporter",
     "CLAUDE.md устарел после темы (SpotlightCard в рецепте, dist\\LumeneraViewer, Mica) — обновить в финале",
-    "CameraPanel: «NaN % от максимума» в фокус-ассистенте без камеры"
+    "CameraPanel: «NaN % от максимума» в фокус-ассистенте без камеры",
+    "MainWindow.xaml:145 — цвета плашки «ПАУЗА» захардкожены в обход Zs.*",
+    "UI/Converters.cs:32 — Green/Yellow/Red дублируют Palette.Success/Warning/Error",
+    "MainWindow.xaml.cs ShowPage/SelectTab — (string)Tag/ToolTip бросит на странице без строкового Tag",
+    "Export/FrameExporter.Save.cs — File.Delete старого .json после записи кадра может бросить, хотя кадр сохранён",
+    "Лимит API прервал таск 04 (~14:10–18:20); продолжен тем же исполнителем"
   ],
   "reviewers": {
     "manifestSpec": "a5b01cc46c7d842fd",
     "craft": "a37291edf1fbf8844"
   },
-  "blind": null
+  "blind": null,
+  "resumeNotes": {
+    "ticket04": "в работе преемник (agent a8b180c28b59cda39) после handoff-04-1.md; дальше: ревью 04 → коммит → волна 3: 05, 06, 07 параллельно → ревью → 08 (Gemini+слева) → финал (слепая приёмка, CLAUDE.md, ADR, отчёт)",
+    "reviewers": "manifestSpec a5b01cc46c7d842fd, craft a37291edf1fbf8844 (если не отвечают — новые)",
+    "userSettingsNote": "в %AppData%\\LumeneraViewer\\settings.json тестовые данные (PreferDemo, 10x 0.821) — пользователь не решил удалять; не трогать"
+  }
 }

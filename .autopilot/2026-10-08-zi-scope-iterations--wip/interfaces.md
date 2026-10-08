@@ -74,3 +74,10 @@ SeriesPanelViewModel SeriesPanel { get; }       // таск 06 (заглушка
 - `MainViewModel.SeriesPanel` (`SeriesPanelViewModel`: `[ObservableProperty] bool IsActive`, `IAsyncRelayCommand CaptureStepCommand`, `MainViewModel Host`); `IRelayCommand PrimaryCaptureCommand` (IsActive ? CaptureStep : CapturePanel.Capture, CanExecute пробрасывается) — Пробел и «Снимок» идут через него.
 - Выбранная вкладка — `Settings.Extensions["ui.rightTab"]`.
 - **AssemblyName = ZI-scope ломает pack-URI `/LumeneraViewer;component/…`**: пиши относительные пути или `/ZI-scope;component/…`.
+
+## Из таска 04 — увеличения и профили (предварительно, до завершения таска)
+
+- `MainViewModel`: `int CurrentMagnification {get;set;}` (из любого потока; set = StoreLive → LoadLive → применить Adjustments/экспозицию/усиление/плашку; вне 1–10000 игнорируется) · `event Action<int>? MagnificationChanged` (UI-поток) · `IReadOnlyList<int> AvailableMagnifications` (ObservableCollection, по возрастанию) · `bool IsCurrentCalibrated` · `void AddMagnification(int)` (не переключает) · `bool RemoveMagnification(int)` · `void NotifyCalibrationChanged()` · `void ApplyColorProfile(ColorProfile)` · `void LoadConfiguration(AppSettings)` (через ReplaceSettings + SettingsReplaced) · `IRelayCommand ShowConfigProfilesCommand` · `PrimaryCaptureCommand` — CanExecute обновляется при смене `SeriesPanel.IsActive`.
+- **Цвет для текущего увеличения:** просто `host.Adjustments = adj` (например `adj with { Deep = ... }`) — в профиль сохраняется автоматически (SaveSettingsSoon/троттлинг вызывают `MagnificationSettings.StoreLive`). Явно — `MagnificationSettings.StoreLive(host.Settings)`.
+- `AppSettings.CopyFrom(AppSettings)`; `MagnificationSettings.Remove(s, mag)`, `IsValid(mag)`, `MinMagnification=1`, `MaxMagnification=10000`; `OverlayState.CurrentMicronsPerPixel(s)` — из профиля текущего увеличения.
+- `ScalePanelViewModel.Reload()`; `ColorPanelViewModel.Build` сохраняет `Adjustments.Deep`; `UI.ProfileFileFilters { Color, Config, SafeName(string?), Describe(Exception) }`; `ConfigProfilesViewModel.ShowAsync(MainViewModel)`.
