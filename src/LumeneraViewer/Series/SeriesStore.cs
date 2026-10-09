@@ -33,18 +33,7 @@ public static class SeriesStore
             .ToList();
         var dto = new FileDto(Format, s.Plan, ToDto(s.Current), s.Reshooting, s.ExtraSteps.Select(ToDto).ToList(), steps);
 
-        var path = Path.Combine(s.Folder, FileName);
-        var tmp = path + ".tmp";
-        try
-        {
-            File.WriteAllText(tmp, JsonSerializer.Serialize(dto, Json));
-            File.Move(tmp, path, overwrite: true);
-        }
-        catch
-        {
-            try { File.Delete(tmp); } catch { /* временный файл мог не создаться */ }
-            throw;
-        }
+        Settings.AtomicFile.WriteAllText(Path.Combine(s.Folder, FileName), JsonSerializer.Serialize(dto, Json));
     }
 
     /// <summary>

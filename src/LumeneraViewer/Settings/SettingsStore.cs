@@ -149,9 +149,7 @@ public sealed class SettingsStore : IDisposable
         lock (_writeLock)
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
-            var tmp = Path + ".tmp";
-            File.WriteAllText(tmp, json);
-            File.Move(tmp, Path, overwrite: true);
+            AtomicFile.WriteAllText(Path, json);   // tmp → Flush(true) → замена, tmp убирается при сбое
         }
     }
 

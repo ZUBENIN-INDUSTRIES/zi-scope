@@ -26,7 +26,7 @@ public partial class ConfigProfilesViewModel : ObservableObject
     public ConfigProfilesViewModel(MainViewModel host, string? folder = null)
     {
         Host = host;
-        _folder = folder ?? ProfileFiles.ConfigProfilesFolder;
+        _folder = folder ?? ProfileFiles.ConfigProfilesFolderFor(host.SettingsPath);   // при --settings — рядом с тем файлом
         Reload();
     }
 

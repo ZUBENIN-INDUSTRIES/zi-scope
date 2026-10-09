@@ -10,6 +10,9 @@ public enum ScaleUnit { Micrometers, Millimeters }
 public sealed record ScaleReading(double Value, ScaleUnit Unit)
 {
     public double Microns => Unit == ScaleUnit.Millimeters ? Value * 1000 : Value;
+
+    /// <summary>Как прочитано: «100 µm», «0.5 mm» — независимо от того, как OCR написал единицы.</summary>
+    public string Display => Value.ToString("0.###", CultureInfo.InvariantCulture) + (Unit == ScaleUnit.Millimeters ? " mm" : " µm");
 }
 
 /// <summary>

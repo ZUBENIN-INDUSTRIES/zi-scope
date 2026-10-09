@@ -9,8 +9,8 @@ WPF-программа (.NET 8, x64; exe — `ZI-scope.exe`, пространс�
 |---------|------------|
 | `dotnet build LumeneraViewer.sln -c Debug` | Собрать приложение и тесты (в sln только x64) |
 | `dotnet run --project src/LumeneraViewer` | Запустить; без драйвера/камеры — кнопка «Демо» |
-| `dotnet run --project src/LumeneraViewer -- --settings <путь>\settings.json` | Запуск с отдельным файлом настроек (для проверок; `%AppData%\ZI-scope\settings.json` не трогается) |
-| `dotnet test LumeneraViewer.sln` | Все тесты (xUnit: 311 зелёных, 1 пропущен — замер скорости) |
+| `dotnet run --project src/LumeneraViewer -- --settings <путь>\settings.json` | Запуск с отдельным файлом настроек (для проверок; `%AppData%\ZI-scope` не трогается, профили — в `profiles` рядом) |
+| `dotnet test LumeneraViewer.sln` | Все тесты (xUnit: все зелёные, 1 пропущен — замер скорости) |
 | `dotnet test LumeneraViewer.sln --filter "FullyQualifiedName~ScaleBarMathTests"` | Один класс тестов |
 | `$env:LV_PERF=1; dotnet test LumeneraViewer.sln -c Release --filter "Category=Perf"` | Замер скорости `ImageProcessor` с глубоким цветом (PowerShell) |
 | `powershell -ExecutionPolicy Bypass -File .\publish.ps1` | Папка для переноса `dist\ZI-scope\` (self-contained single-file `ZI-scope.exe` + `Drivers\` + `README.txt`); `-Output D:\path` — другая папка |
@@ -34,7 +34,7 @@ src/LumeneraViewer/
   UI/           Dialogs, Converters, ProfileFileFilters, Controls/ (LabeledSlider, ToneCurveEditor, ZoomPanHost…), Effects/ (Palette, Theme, Pill, Effects.xaml)
 tests/LumeneraViewer.Tests/   xUnit по чистой логике и швам
 installer/      README-УСТАНОВКА.txt в git; infinity*.exe (драйверы, 39 МБ) — только локально
-docs/adr/       решения 0001–0006
+docs/adr/       решения 0001–0012
 publish.ps1     сборка папки для переноса
 ```
 
@@ -95,7 +95,7 @@ publish.ps1     сборка папки для переноса
 - Реальная камера требует драйвер Lumenera (`lucamapi.dll` в системе); проверка — `CameraFactory.IsDriverAvailable()`.
 - Комплектный установщик: положить `installer\infinity_analyze_and_capture_for_windows_v_*.exe`; csproj копирует его в `Drivers\` вывода, `publish.ps1` без него падает. В git не попадает.
 - Настройки: `%AppData%\ZI-scope\settings.json`; если его нет, а есть `%AppData%\LumeneraViewer\settings.json` — копируется (старый не трогается). Битый файл → `.bak` и умолчания.
-- Профили конфигурации: `%AppData%\ZI-scope\profiles` (и при `--settings` тоже).
+- Профили конфигурации: `%AppData%\ZI-scope\profiles`; при `--settings <файл>` — папка `profiles` рядом с этим файлом.
 - Снимки по умолчанию: `<Изображения>\ZI-scope`.
 - OCR требует TFM `net8.0-windows10.0.19041.0` (приложение и тесты) и язык Windows с поддержкой OCR; без него калибровка по снимку просит ввести число вручную.
 - Камеры на машине разработки нет: всё проверяется в демо (`SimulatedCamera`, есть имитация фокуса) и тестами.

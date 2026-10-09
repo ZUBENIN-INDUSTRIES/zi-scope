@@ -56,7 +56,7 @@ public sealed class FrameExporterTests : IDisposable
     [Fact]
     public void BuildFileName_EmptyPrefixFallsBackToDefault()
     {
-        Assert.StartsWith("Lumenera_20261007", FrameExporter.BuildFileName("", T, null, null, ImageFormatKind.Png));
+        Assert.StartsWith("ZI-scope_20261007",FrameExporter.BuildFileName("", T, null, null, ImageFormatKind.Png));
     }
 
     private static CameraFrame Frame(int w = 64, int h = 48)
@@ -237,6 +237,26 @@ public sealed class FrameExporterTests : IDisposable
         Assert.True(File.Exists(target));
         Assert.False(File.Exists(Path.Combine(_dir, "1_1_100_1.json")));
     }
+
+    [Fact]
+    public async Task SaveExactAsync_StaleJsonLocked_FrameSavedWithoutError()
+    {
+        var target = Path.Combine(_dir, "1_1_100_2.png");
+        await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: false);
+        var json = Path.Combine(_dir, "1_1_100_2.json");
+
+        var o = Options(ImageFormatKind.Png); o.WriteMetadata = false;
+        using (new FileStream(json, FileMode.Open, FileAccess.Read, FileShare.None))   // .json не удалить
+        {
+            var path = await Exp().SaveExactAsync(Frame(8, 8), null, Meta(), o, target, overwrite: true);
+            Assert.Equal(target, path);
+        }
+        Assert.Equal(8, Decode(target).PixelWidth);   // кадр перезаписан
+    }
+
+    [Fact]
+    public void NewSettings_DefaultPrefix_IsZiScope()
+        => Assert.Equal("ZI-scope", new LumeneraViewer.Settings.AppSettings().Export.Prefix);
 
     [Fact]
     public async Task SaveExactAsync_NoExtraMetadata_NoExtraField()

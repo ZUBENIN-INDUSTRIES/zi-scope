@@ -61,6 +61,17 @@ public class PaletteTests
         Assert.True(Contrast(Get(fore), Get(back)) >= 4.5, $"{fore} на {back}: {Contrast(Get(fore), Get(back)):0.00}:1");
     }
 
+    // Недоступный текст и акцент на панели. Оба проходят обычный порог AA 4.5:1 (не только 3:1 для крупного).
+    [Theory]
+    [InlineData(nameof(Palette.TextDisabled), nameof(Palette.Panel), 4.5)]
+    [InlineData(nameof(Palette.Accent), nameof(Palette.Panel), 4.5)]
+    public void Контраст_вспомогательного_и_акцента(string fore, string back, double min)
+    {
+        Color Get(string n) => (Color)typeof(Palette).GetField(n)!.GetValue(null)!;
+        var c = Contrast(Get(fore), Get(back));
+        Assert.True(c >= min, $"{fore} на {back}: {c:0.00}:1, нужно {min}:1");
+    }
+
     [Fact]
     public void Выделение_это_акцент_с_альфой_016()
     {

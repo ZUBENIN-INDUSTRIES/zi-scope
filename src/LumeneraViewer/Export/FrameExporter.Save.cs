@@ -84,7 +84,15 @@ public sealed partial class FrameExporter : IDisposable
         if (o.WriteMetadata)
             WriteMetadata(json, Path.GetFileName(path), meta, f, o, overlays is not null, null, extra);
         else if (overwrite && File.Exists(json))
-            File.Delete(json);   // метаданные прежнего снимка к новому файлу не относятся
+        {
+            // Метаданные прежнего снимка к новому файлу не относятся. Кадр уже сохранён: если .json
+            // убрать не удалось (занят, нет прав), это не ошибка сохранения.
+            try { File.Delete(json); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"Не удалось удалить устаревший {json}: {ex.Message}");
+            }
+        }
         return path;
     }
 
@@ -154,23 +162,7 @@ public sealed partial class FrameExporter : IDisposable
 
     /// <summary>Запись во временный файл и переименование — частичных файлов не остаётся.</summary>
     private static void WriteAtomic(string path, Action<Stream> write, bool overwrite = true)
-    {
-        var tmp = path + ".tmp";
-        try
-        {
-            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
-            {
-                write(fs);
-                fs.Flush(true);
-            }
-            File.Move(tmp, path, overwrite);   // overwrite = false и файл появился — IOException
-        }
-        catch
-        {
-            try { File.Delete(tmp); } catch { /* временный файл мог не создаться */ }
-            throw;
-        }
-    }
+        => AtomicFile.Write(path, write, overwrite);   // overwrite = false и файл появился — IOException
 
     private static void WriteMetadata(string path, string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned, int? seriesIndex,
         IReadOnlyDictionary<string, string>? extra = null)

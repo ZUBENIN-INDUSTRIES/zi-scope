@@ -19,6 +19,14 @@ public sealed class ProfileFilesTests : IDisposable
     private string P(string name) => Path.Combine(_dir, name);
 
     [Fact]
+    public void ConfigProfilesFolder_NextToSettingsFile()
+        => Assert.Equal(@"D:\lab\run\profiles", ProfileFiles.ConfigProfilesFolderFor(@"D:\lab\run\settings.json"));
+
+    [Fact]
+    public void ConfigProfilesFolder_DefaultSettings_AppDataProfiles()
+        => Assert.Equal(ProfileFiles.ConfigProfilesFolder, ProfileFiles.ConfigProfilesFolderFor(Path.Combine(SettingsStore.AppDataFolder, "settings.json")));
+
+    [Fact]
     public void Color_RoundTrip_WithFormatMarker()
     {
         var p = new ColorProfile

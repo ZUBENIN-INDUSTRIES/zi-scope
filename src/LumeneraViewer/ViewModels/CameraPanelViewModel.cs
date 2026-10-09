@@ -301,8 +301,14 @@ public partial class CameraPanelViewModel : ObservableObject
     [ObservableProperty] private double _sharpness = double.NaN;
     [ObservableProperty] private double _sharpnessMax;
     [ObservableProperty] private double _sharpnessLevel;
-    [ObservableProperty] private double _sharpnessPercent = double.NaN;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SharpnessPercentText))]
+    private double _sharpnessPercent = double.NaN;
     public double SharpnessMarker => MarkerAt;
+
+    /// <summary>«87 % от максимума»; без кадров (NaN) — прочерк, никогда «NaN».</summary>
+    public string SharpnessPercentText => double.IsFinite(SharpnessPercent)
+        ? SharpnessPercent.ToString("0", System.Globalization.CultureInfo.CurrentCulture) + " % от максимума"
+        : "—";
 
     private void OnRawFrame(CameraFrame f)
     {

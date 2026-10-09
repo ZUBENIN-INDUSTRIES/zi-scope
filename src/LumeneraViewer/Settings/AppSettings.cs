@@ -103,7 +103,7 @@ public sealed class ExportSettings
     public bool BurnOverlays { get; set; } = true;
     public bool AlsoSaveClean { get; set; }
     public bool WriteMetadata { get; set; } = true;
-    public string Prefix { get; set; } = "Lumenera";
+    public string Prefix { get; set; } = FrameExporter.DefaultPrefix;
 }
 
 public sealed class TimelapseSettings

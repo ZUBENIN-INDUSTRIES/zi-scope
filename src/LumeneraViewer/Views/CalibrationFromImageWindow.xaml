@@ -61,7 +61,7 @@
                         <StackPanel>
                             <TextBlock Text="Распознано" Style="{StaticResource ZsSectionLabel}" Margin="0,0,0,6"/>
                             <TextBlock Text="{Binding DetectionText}" Foreground="{StaticResource Zs.Text}" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding OcrText}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding OcrText}" ToolTip="{Binding OcrRawText}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <ui:Button Content="Провести линию заново" Appearance="Secondary" Margin="0,8,0,0" HorizontalAlignment="Stretch"
                                        Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RedrawCommand}"/>
                         </StackPanel>

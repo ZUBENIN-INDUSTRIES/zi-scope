@@ -104,7 +104,7 @@
                 <TextBlock Text="резкость" Margin="8,0,0,4" FontSize="12" Foreground="{StaticResource Zs.TextSecondary}" VerticalAlignment="Bottom"/>
             </StackPanel>
             <TextBlock HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4" FontSize="12" Foreground="{StaticResource Zs.TextSecondary}"
-                       Text="{Binding SharpnessPercent, StringFormat={}{0:0} % от максимума, TargetNullValue=—}"/>
+                       Text="{Binding SharpnessPercentText}"/>
         </Grid>
         <c:LevelBar Height="8" Margin="0,0,0,4" Value="{Binding SharpnessLevel}" Marker="{Binding SharpnessMarker}"
                     ToolTip="Полоса — текущая резкость; светлая отметка — максимум за сессию"/>

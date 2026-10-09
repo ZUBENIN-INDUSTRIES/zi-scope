@@ -33,6 +33,17 @@ public sealed class ScaleTextParserTests
     public void Microns_ConvertsUnits(string text, double microns)
         => Assert.Equal(microns, ScaleTextParser.Parse(text)!.Microns, 9);
 
+    // Пользователю показываем прочтение, а не сырой OCR: «100 pm» и «100 рт» — это «100 µm».
+    [Theory]
+    [InlineData("100 pm", "100 µm")]
+    [InlineData("100 рт", "100 µm")]
+    [InlineData("50um", "50 µm")]
+    [InlineData("100 мкм", "100 µm")]
+    [InlineData("0,5 мм", "0.5 mm")]
+    [InlineData("1.25 mm", "1.25 mm")]
+    public void Display_NormalizedReading(string text, string expected)
+        => Assert.Equal(expected, ScaleTextParser.Parse(text)!.Display);
+
     [Theory]
     [InlineData("")]
     [InlineData(null)]

@@ -66,6 +66,16 @@ public static class ProfileFiles
     /// <summary>%AppData%\ZI-scope\profiles — сохранённые профили конфигурации.</summary>
     public static string ConfigProfilesFolder { get; } = Path.Combine(SettingsStore.AppDataFolder, "profiles");
 
+    /// <summary>
+    /// Папка профилей конфигурации для файла настроек: <c>profiles</c> рядом с ним. Для обычного
+    /// %AppData%\ZI-scope\settings.json это <see cref="ConfigProfilesFolder"/>; при <c>--settings</c> — рядом с указанным файлом.
+    /// </summary>
+    public static string ConfigProfilesFolderFor(string settingsPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(settingsPath);
+        return Path.Combine(Path.GetDirectoryName(Path.GetFullPath(settingsPath))!, "profiles");
+    }
+
     /// <summary>Файлы <c>.zscope</c> в <see cref="ConfigProfilesFolder"/>, по имени.</summary>
     public static IReadOnlyList<string> ListConfigProfiles() => ListConfigProfiles(ConfigProfilesFolder);
 
@@ -115,16 +125,6 @@ public static class ProfileFiles
         }
         var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
         Directory.CreateDirectory(dir);
-        var tmp = path + ".tmp";
-        try
-        {
-            File.WriteAllText(tmp, o.ToJsonString(SettingsStore.JsonOptions));
-            File.Move(tmp, path, overwrite: true);
-        }
-        catch
-        {
-            try { File.Delete(tmp); } catch { /* временный файл мог не создаться */ }
-            throw;
-        }
+        AtomicFile.WriteAllText(path, o.ToJsonString(SettingsStore.JsonOptions));
     }
 }

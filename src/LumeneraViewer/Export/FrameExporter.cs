@@ -11,7 +11,8 @@ namespace LumeneraViewer.Export;
 /// </summary>
 public sealed partial class FrameExporter
 {
-    public const string DefaultPrefix = "Lumenera";
+    /// <summary>Префикс имени файла по умолчанию: и при пустом префиксе, и умолчание <c>ExportSettings.Prefix</c>.</summary>
+    public const string DefaultPrefix = "ZI-scope";
 
     /// <summary>{prefix}_{yyyyMMdd_HHmmss_fff}[_{objective}][_{0001}].{ext}; недопустимые символы → «_».</summary>
     public static string BuildFileName(string prefix, DateTime t, string? objective, int? seriesIndex, ImageFormatKind f)

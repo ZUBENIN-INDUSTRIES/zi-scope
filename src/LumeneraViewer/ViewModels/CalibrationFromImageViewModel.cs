@@ -65,6 +65,8 @@ public partial class CalibrationFromImageViewModel : ObservableObject
     /// <summary>Что нашлось: линия и распознанный текст.</summary>
     [ObservableProperty] private string _detectionText = "Ищу линию…";
     [ObservableProperty] private string _ocrText = "";
+    /// <summary>Сырой текст OCR — только для подсказки; null — подсказки нет.</summary>
+    [ObservableProperty] private string? _ocrRawText;
 
     /// <summary>Область подписи над линией (для показа), null — нет.</summary>
     [ObservableProperty] private Rect? _textRegion;
@@ -207,12 +209,15 @@ public partial class CalibrationFromImageViewModel : ObservableObject
                             + (_lineEdited ? " (оставлена ваша линия)" : "");
 
             OcrText = "Распознаю подпись…";
+            OcrRawText = null;
             var ocr = await ScaleTextRecognizer.RecognizeAsync(px, w, h, line);
             if (!ocr.OcrAvailable) OcrText = ScaleTextRecognizer.UnavailableMessage;
             else if (ocr.Reading is { } r)
             {
+                // Показываем прочтение («100 µm»), а не сырой OCR («100 pm») — он только в подсказке.
+                OcrRawText = $"Текст OCR: «{ocr.RawText.Trim()}»";
                 if (_valueEdited)
-                    OcrText = $"Распознано: «{ocr.RawText.Trim()}» — оставлено введённое вами число.";
+                    OcrText = $"Распознано: {r.Display} — оставлено введённое вами число.";
                 else
                 {
                     Apply(() =>
@@ -220,7 +225,7 @@ public partial class CalibrationFromImageViewModel : ObservableObject
                         ValueText = r.Value.ToString("0.###", CultureInfo.InvariantCulture);
                         UnitIndex = r.Unit == ScaleUnit.Millimeters ? 1 : 0;
                     });
-                    OcrText = $"Распознано: «{ocr.RawText.Trim()}». Проверьте число.";
+                    OcrText = $"Распознано: {r.Display}. Проверьте число.";
                 }
             }
             else OcrText = ocr.RawText.Length > 0
