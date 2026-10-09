@@ -1,7 +1,7 @@
 window.STATE =
 {
   "slug": "zi-scope-iterations",
-  "dir": "2026-10-08-zi-scope-iterations--wip",
+  "dir": "2026-10-08-zi-scope-iterations",
   "title": "ZI-scope: серии съёмки, новый дизайн, глубокий цвет, профили",
   "mode": "semi",
   "depth": "normal",
@@ -11,8 +11,8 @@ window.STATE =
   "memoryFile": "CLAUDE.md",
   "skillDir": "C:/Users/Ярослав/.agents/skills/autopilot",
   "startedAt": "2026-10-08T13:25:59+05:00",
-  "updatedAt": "2026-10-08T23:57:52+05:00",
-  "finishedAt": null,
+  "updatedAt": "2026-10-09T10:17:03+05:00",
+  "finishedAt": "2026-10-09T10:17:03+05:00",
   "stages": [
     {
       "id": "preflight",
@@ -50,27 +50,29 @@ window.STATE =
       "id": "build",
       "status": "done",
       "startedAt": "2026-10-08T13:44:07+05:00",
-      "note": "8 из 8 тасков готовы",
+      "note": "9 из 9 тасков готовы",
       "finishedAt": "2026-10-08T23:57:52+05:00"
     },
     {
       "id": "review",
       "status": "done",
       "startedAt": "2026-10-08T13:53:09+05:00",
-      "note": "8 из 8 тасков готовы",
+      "note": "9 из 9 тасков готовы",
       "finishedAt": "2026-10-08T23:57:52+05:00"
     },
     {
       "id": "final",
-      "status": "active",
-      "startedAt": "2026-10-08T23:57:52+05:00"
+      "status": "done",
+      "startedAt": "2026-10-08T23:57:52+05:00",
+      "finishedAt": "2026-10-09T10:17:03+05:00",
+      "note": "слепая приёмка: 17/17 реализовано, расхождений нет"
     }
   ],
   "requirements": {
     "total": 32,
-    "done": 0,
-    "inTicket": 31,
-    "inSpec": 1,
+    "done": 32,
+    "inTicket": 0,
+    "inSpec": 0,
     "placeholder": 0,
     "deferred": 0,
     "dropped": 0
@@ -375,16 +377,22 @@ window.STATE =
         "профили при --settings",
         "PaletteTests"
       ],
-      "status": "in-progress",
+      "status": "done",
       "retries": 0,
-      "repairs": 0,
+      "repairs": 1,
       "handoffs": 0,
-      "startedAt": "2026-10-09T00:07:57+05:00"
+      "startedAt": "2026-10-09T00:07:57+05:00",
+      "commit": "22843bd",
+      "finishedAt": "2026-10-09T10:17:03+05:00",
+      "tests": {
+        "passed": 327,
+        "failed": 0
+      }
     }
   ],
   "singlePass": null,
   "tests": {
-    "passed": 311,
+    "passed": 327,
     "failed": 0
   },
   "debt": {
@@ -452,14 +460,7 @@ window.STATE =
     ]
   },
   "resumeNotes": {
-    "ticket04": "готов (dea8333). Волна 3: 05, 06, 07 в полёте → ревью каждого → коммит → 08 (Gemini+слева) → финал",
-    "reviewers": "manifestSpec a5b01cc46c7d842fd, craft a37291edf1fbf8844 (если не отвечают — новые)",
-    "userSettingsNote": "в %AppData%\\LumeneraViewer\\settings.json тестовые данные (PreferDemo, 10x 0.821) — пользователь не решил удалять; не трогать",
-    "projectOnly": "требование пользователя: проверочные файлы только в папке проекта (.autopilot/<прогон>/scratch/), Документы не трогать",
-    "wave3": "05 45a90d7, 06 d44b4af, 07 56ddaf9, уведомления 7a081a7. 08 в полёте",
-    "settingsRestore": "ВАЖНО: эталон настроек пользователя — .autopilot/2026-10-08-zi-scope-iterations--wip/scratch/backup/zi.json (снят до волны 3, без агентов). Параллельные исполнители перемешали бэкапы: текущий %AppData%\\ZI-scope\\settings.json отличается. Когда никто не запускает программу — восстановить из эталона и сверить SHA-256.",
-    "wave4": "08 агент ad5d3e5ca3590305e (Gemini, меню слева, + «Снять шаг», плашка на превью, уведомления в палитре). Проверки — только с --settings в scratch",
-    "final": "идут G4 (a9dbc866a44abfb10), память (a46ef2fdd6ab1a9f7), ADR (a8d52e2526e738b23); после G4 — таск 09 (tickets/09-final-fixes.md), затем git mv --wip, README, отчёт"
+    "done": "прогон сдан 2026-10-09T10:17:03+05:00"
   },
   "concernsTriage": {
     "fixNow": [
