@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -265,11 +265,16 @@ public partial class SeriesPanelViewModel : ObservableObject
             Host.Notify("Серия не начата", $"Укажите полный путь к папке серии, например C:\\Снимки\\Серия. Введено: «{folder}»", NotifyKind.Warning);
             return;
         }
-        if (File.Exists(Path.Combine(folder, SeriesStore.FileName)) &&
-            !await Dialogs.ConfirmAsync(Host.Owner, "В папке уже есть серия",
-                "Начать новую серию в этой папке? Состояние прежней серии будет заменено (снимки останутся). Чтобы продолжить прежнюю, выберите «Открыть серию…».",
-                "Начать новую"))
-            return;
+        var existing = ProjectsIn(folder);
+        if (existing.Count > 0)
+        {
+            var newest = Path.GetFileNameWithoutExtension(SeriesStore.FindProject(folder) ?? existing[0]);
+            var more = existing.Count > 1 ? $" и ещё {existing.Count - 1}" : "";
+            if (!await Dialogs.ConfirmAsync(Host.Owner, "В папке уже есть проект серии",
+                    $"В папке уже есть проект серии «{newest}»{more}. Начать новую серию здесь? Прежний проект будет заменён (снимки останутся).",
+                    "Начать новую"))
+                return;
+        }
 
         var session = new SeriesSession(plan, folder);
         try
@@ -282,6 +287,16 @@ public partial class SeriesPanelViewModel : ObservableObject
             Host.Notify("Не удалось создать серию", ex.Message, NotifyKind.Error);
             return;
         }
+        // Прежние проекты папки заменены новым (снимки не трогаем).
+        foreach (var old in existing)
+        {
+            if (string.Equals(Path.GetFullPath(old), Path.GetFullPath(session.ProjectFile), StringComparison.OrdinalIgnoreCase)) continue;
+            try { File.Delete(old); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Host.Notify("Прежний проект серии не удалён", ex.Message, NotifyKind.Warning);
+            }
+        }
 
         var d = S.SeriesDefaults ??= new SeriesDefaults();
         d.Groups = plan.Groups;
@@ -293,6 +308,19 @@ public partial class SeriesPanelViewModel : ObservableObject
         Activate(session);
     }
 
+    /// <summary>Все проекты серии (.zisc) в папке; нет папки — пусто.</summary>
+    private static IReadOnlyList<string> ProjectsIn(string folder)
+    {
+        try
+        {
+            return Directory.Exists(folder)
+                ? Directory.EnumerateFiles(folder, "*" + SeriesStore.Extension)
+                    .Where(f => string.Equals(Path.GetExtension(f), SeriesStore.Extension, StringComparison.OrdinalIgnoreCase)).ToList()
+                : Array.Empty<string>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return Array.Empty<string>(); }
+    }
+
     private static bool IsValidFolder(string path)
     {
         try { return Path.IsPathFullyQualified(path) && path.IndexOfAny(Path.GetInvalidPathChars()) < 0 && Path.GetFullPath(path).Length > 0; }
@@ -302,33 +330,38 @@ public partial class SeriesPanelViewModel : ObservableObject
     [RelayCommand]
     private void OpenSeries()
     {
-        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Папка серии (с файлом series.zscope-series.json)" };
-        var start = S.LastSeriesFolder is { } l && Directory.Exists(l) ? Path.GetDirectoryName(l) : S.Export?.Folder;
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Открыть проект серии",
+            Filter = $"Проект серии ZI-scope (*{SeriesStore.Extension})|*{SeriesStore.Extension}",
+            CheckFileExists = true,
+        };
+        var start = S.LastSeriesFolder is { } l && Directory.Exists(l) ? l : S.Export?.Folder;
         if (!string.IsNullOrEmpty(start) && Directory.Exists(start)) dlg.InitialDirectory = start;
         if (dlg.ShowDialog(Host.Owner) != true) return;
+        SeriesSession session;
         try
         {
-            Activate(SeriesStore.Load(dlg.FolderName));
-        }
-        catch (FileNotFoundException)
-        {
-            Host.Notify("Серия не открыта", "В папке нет файла серии " + SeriesStore.FileName, NotifyKind.Warning);
+            session = SeriesStore.Load(dlg.FileName);
         }
         catch (Exception ex)
         {
-            Host.Notify("Серия не открыта", ex.Message, NotifyKind.Error);
+            // Состояние программы не меняется: текущая серия (если есть) остаётся.
+            Host.Notify("Проект серии не открыт", ex.Message, NotifyKind.Error);
+            return;
         }
+        Activate(session);
     }
 
-    /// <summary>При запуске: незавершённая серия в LastSeriesFolder → «Продолжить серию …?».</summary>
+    /// <summary>При запуске: незавершённая серия по проекту (.zisc) в LastSeriesFolder → «Продолжить серию …?».</summary>
     private async Task OfferResumeAsync()
     {
         if (Runner is not null || S.LastSeriesFolder is not { Length: > 0 } folder) return;
         SeriesSession session;
         try
         {
-            if (!File.Exists(Path.Combine(folder, SeriesStore.FileName))) return;
-            session = SeriesStore.Load(folder);
+            if (SeriesStore.FindProject(folder) is not { } project) return;
+            session = SeriesStore.Load(project);
         }
         catch (Exception) { return; }
         if (SeriesRunner.IsFinished(session)) return;
@@ -497,7 +530,7 @@ public partial class SeriesPanelViewModel : ObservableObject
     }
 
     /// <summary>Один вид кадра: оверлей по оформлению, метаданные с полями серии, точный путь.</summary>
-    private Task<string> SaveKindAsync(CameraFrame frame, OverlayState all, CaptureMetadata meta, SeriesPlan plan, SeriesStepKey step,
+    private Task<FrameMetadata> SaveKindAsync(CameraFrame frame, OverlayState all, CaptureMetadata meta, SeriesPlan plan, SeriesStepKey step,
         FrameKind kind, string path, bool overwrite)
     {
         // Сетка, перекрестие и проводимая линия — только для экрана.
@@ -569,7 +602,7 @@ public partial class SeriesPanelViewModel : ObservableObject
         }
         var names = string.Join(", ", files.Select(Path.GetFileName));
         if (!await Dialogs.ConfirmAsync(Host.Owner, "Удалить снимки шага?",
-                $"Группа {k.Group} · Образец {k.Sample} · ×{k.Magnification}: {names} (и .json). Шаг снова станет «не снят».", "Удалить"))
+                $"Группа {k.Group} · Образец {k.Sample} · ×{k.Magnification}: {names}. Шаг снова станет «не снят».", "Удалить"))
             return;
         if (!ReferenceEquals(Runner, r) || IsCapturing) return;
         r.Delete(k);
@@ -761,7 +794,7 @@ public partial class SeriesPanelViewModel : ObservableObject
         public void Persist(SeriesSession session)
         {
             try { SeriesStore.Save(session); }
-            catch (Exception ex) { _vm.Host.Notify("Не удалось записать состояние серии", ex.Message, NotifyKind.Error); }
+            catch (Exception ex) { _vm.Host.Notify("Не удалось записать проект серии", ex.Message, NotifyKind.Error); }
         }
     }
 

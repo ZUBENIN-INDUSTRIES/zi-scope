@@ -1,4 +1,5 @@
 using System.IO;
+using LumeneraViewer.Export;
 using LumeneraViewer.Series;
 
 namespace LumeneraViewer.ViewModels;
@@ -24,7 +25,7 @@ public interface ISeriesEnvironment
     void DeleteEmptyFolder(string path);
     /// <summary>Файлы шага уже есть, а шаг не переснимается: true — перезаписать.</summary>
     Task<bool> ConfirmOverwriteAsync(IReadOnlyList<string> existing);
-    /// <summary>Записать состояние серии (series.zscope-series.json).</summary>
+    /// <summary>Записать проект серии (.zisc).</summary>
     void Persist(SeriesSession session);
 }
 
@@ -42,10 +43,11 @@ public enum StepCaptureResult
 }
 
 /// <summary>
-/// Сохранение одного вида кадра: вид, полный путь, можно ли перезаписать → записанный путь.
+/// Сохранение одного вида кадра: вид, полный путь, можно ли перезаписать → метаданные записанного кадра
+/// (в проект серии; имя файла в них runner заменит на итоговое).
 /// Кадр и оверлей по оформлению вида выбирает вызывающий.
 /// </summary>
-public delegate Task<string> SaveFrameKind(FrameKind kind, string fullPath, bool overwrite);
+public delegate Task<FrameMetadata> SaveFrameKind(FrameKind kind, string fullPath, bool overwrite);
 
 /// <summary>
 /// Логика прогона серии без UI: съёмка шага (все виды кадра по шаблону имени), переход дальше,
@@ -145,21 +147,22 @@ public sealed class SeriesRunner
         // Сначала все виды во временные имена; упал любой — всё записанное этой попыткой удаляется,
         // прежние файлы шага не тронуты. Только когда записаны все — переименование в настоящие имена.
         var temps = paths.Select(TempPath).ToArray();
+        var frames = new FrameMetadata[paths.Count];
         try
         {
-            foreach (var t in temps) DeleteWithJson(t);   // остатки прошлой неудачи
+            foreach (var t in temps) _env.DeleteFile(t);   // остатки прошлой неудачи
             var written = 0;
             try
             {
                 for (var i = 0; i < kinds.Count; i++)
                 {
                     written = i + 1;
-                    await save(kinds[i], temps[i], false);
+                    frames[i] = await save(kinds[i], temps[i], false);
                 }
             }
             catch
             {
-                for (var i = 0; i < written; i++) DeleteWithJson(temps[i]);
+                for (var i = 0; i < written; i++) _env.DeleteFile(temps[i]);
                 throw;
             }
             Commit(paths, temps);
@@ -172,9 +175,10 @@ public sealed class SeriesRunner
         }
         // Файлы прежней съёмки шага, которых нет в новом наборе (пересъёмка «без масштаба»), — удалить.
         foreach (var f in Session.RecordOf(key).Files)
-            if (!paths.Contains(f, StringComparer.OrdinalIgnoreCase)) DeleteWithJson(f);
+            if (!paths.Contains(f, StringComparer.OrdinalIgnoreCase)) _env.DeleteFile(f);
 
-        Session.MarkDone(key, paths.ToArray());
+        // Метаданные — с итоговым именем файла (записывалось во временную папку).
+        Session.MarkDone(key, paths.ToArray(), paths.Select((p, i) => frames[i] with { File = Path.GetFileName(p) }).ToArray());
         LastCaptured = key;
         AdvanceToPartial();
         SyncMagnification();
@@ -198,14 +202,10 @@ public sealed class SeriesRunner
         return true;
     }
 
-    /// <summary>Удалить файлы шага (и .json рядом), шаг снова «не снят».</summary>
+    /// <summary>Удалить файлы шага, шаг снова «не снят» (его записи кадров уходят из проекта).</summary>
     public void Delete(SeriesStepKey k)
     {
-        foreach (var f in Session.RecordOf(k).Files)
-        {
-            _env.DeleteFile(f);
-            _env.DeleteFile(Path.ChangeExtension(f, ".json"));
-        }
+        foreach (var f in Session.RecordOf(k).Files) _env.DeleteFile(f);
         Session.Reset(k);
         if (LastCaptured == k) LastCaptured = null;
         _env.Persist(Session);
@@ -234,7 +234,7 @@ public sealed class SeriesRunner
         MakeCurrent(c with { Group = Math.Max(1, c.Group + dGroup), Sample = Math.Max(1, c.Sample + dSample) });
     }
 
-    /// <summary>Папка для записи шага до переименования (имя файла то же — в .json попадает настоящее имя).</summary>
+    /// <summary>Папка для записи шага до переименования (имя файла то же, что итоговое).</summary>
     public const string TempFolderName = ".zs-new";
 
     private static string TempPath(string path) =>
@@ -242,10 +242,8 @@ public sealed class SeriesRunner
 
     private const string OldFolderName = "old";
 
-    private static string JsonOf(string path) => Path.ChangeExtension(path, ".json");
-
     /// <summary>
-    /// Поставить записанный набор на место: прежние файлы шага (снимки и .json) отодвигаются в .zs-new\old,
+    /// Поставить записанный набор на место: прежние файлы шага отодвигаются в .zs-new\old,
     /// новые переименовываются в настоящие имена. Любой сбой (файл открыт в другой программе) — все переносы
     /// откатываются в обратном порядке, новые файлы удаляются, на диске ровно прежний набор.
     /// </summary>
@@ -256,7 +254,7 @@ public sealed class SeriesRunner
         var busy = paths[0];
         try
         {
-            foreach (var f in paths.SelectMany(p => new[] { p, JsonOf(p) }))
+            foreach (var f in paths)
             {
                 if (!_env.FileExists(f)) continue;
                 busy = f;
@@ -269,12 +267,6 @@ public sealed class SeriesRunner
                 busy = paths[i];
                 _env.MoveFile(temps[i], paths[i]);
                 moved.Add((temps[i], paths[i]));
-                if (_env.FileExists(JsonOf(temps[i])))
-                {
-                    busy = JsonOf(paths[i]);
-                    _env.MoveFile(JsonOf(temps[i]), JsonOf(paths[i]));
-                    moved.Add((JsonOf(temps[i]), JsonOf(paths[i])));
-                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -284,18 +276,12 @@ public sealed class SeriesRunner
                 try { _env.MoveFile(moved[j].To, moved[j].From); }
                 catch (Exception) { /* вернуть не удалось — файл останется в .zs-new, но не пропадёт */ }
             }
-            foreach (var t in temps) DeleteWithJson(t);
+            foreach (var t in temps) _env.DeleteFile(t);
             throw new SeriesFileBusyException(busy, ex);
         }
-        // Прежние файлы (в том числе старые .json, к новым снимкам не относящиеся) больше не нужны.
+        // Прежние файлы больше не нужны.
         foreach (var (_, to) in moved)
             if (to.StartsWith(oldDir, StringComparison.OrdinalIgnoreCase)) _env.DeleteFile(to);
-    }
-
-    private void DeleteWithJson(string path)
-    {
-        _env.DeleteFile(path);
-        _env.DeleteFile(Path.ChangeExtension(path, ".json"));
     }
 
     /// <summary>

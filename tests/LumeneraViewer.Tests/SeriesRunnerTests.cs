@@ -1,4 +1,6 @@
 using System.IO;
+using LumeneraViewer.Export;
+using LumeneraViewer.Imaging;
 using LumeneraViewer.Series;
 using LumeneraViewer.ViewModels;
 
@@ -49,12 +51,15 @@ public sealed class SeriesRunnerTests
             set { MagnificationSets.Add(value); CurrentMagnification = value; }
         }
 
-        /// <summary>Файлы снимков в папке серии (без .json и временных).</summary>
+        /// <summary>Файлы снимков в папке серии (без временных).</summary>
         public string[] Images => Files.Keys.Where(f => f.EndsWith(".png") && !f.Contains(@"\" + SeriesRunner.TempFolderName + @"\"))
             .Order(StringComparer.Ordinal).ToArray();
     }
 
-    /// <summary>Запись вида: снимок и .json рядом; <see cref="FailAt"/> — номер вызова, который падает.</summary>
+    /// <summary>
+    /// Запись вида: только снимок (как экспорт серии — без .json); <see cref="FailAt"/> — номер вызова, который падает.
+    /// В метаданных File — полный путь записи (временный): итоговое имя ставит runner. Extra["Gen"] — номер записи.
+    /// </summary>
     private sealed class Saver
     {
         private readonly FakeEnv _env;
@@ -63,15 +68,16 @@ public sealed class SeriesRunnerTests
         public List<(FrameKind Kind, string Path, bool Overwrite)> Calls { get; } = new();
         public int? FailAt { get; set; }
 
-        public Task<string> Save(FrameKind k, string path, bool overwrite)
+        public Task<FrameMetadata> Save(FrameKind k, string path, bool overwrite)
         {
             if (!overwrite && _env.Files.ContainsKey(path)) throw new IOException("exists");
             Calls.Add((k, path, overwrite));
             if (Calls.Count == FailAt) throw new IOException("диск полон");
             var g = ++_generation;
             _env.Files[path] = g;
-            _env.Files[Path.ChangeExtension(path, ".json")] = g;
-            return Task.FromResult(path);
+            return Task.FromResult(new FrameMetadata(DateTime.Now, path, ImageFormatKind.Png, 64, 48, "Simulated", "SIM", true, 10f, 1f,
+                ImageAdjustments.Default, "×100", 0.5, k.Decoration != FrameDecoration.Clean, null,
+                new Dictionary<string, string> { ["Kind"] = k.Number.ToString(), ["Gen"] = g.ToString() }));
         }
     }
 
@@ -93,7 +99,10 @@ public sealed class SeriesRunnerTests
 
         Assert.Equal(StepCaptureResult.Captured, res);
         Assert.Equal(new[] { P("1_1_100_1.png"), P("1_1_100_2.png") }, env.Images);
-        Assert.True(env.FileExists(P("1_1_100_1.json")) && env.FileExists(P("1_1_100_2.json")));
+        Assert.DoesNotContain(env.Files.Keys, f => f.EndsWith(".json"));
+        var frames = r.Session.RecordOf(A).Frames!;
+        Assert.Equal(new[] { "1_1_100_1.png", "1_1_100_2.png" }, frames.Select(f => f.File));
+        Assert.Equal(new[] { "1", "2" }, frames.Select(f => f.Extra!["Kind"]));
         Assert.Equal(new[] { FrameDecoration.Clean, FrameDecoration.ScaleBar }, saver.Calls.Select(c => c.Kind.Decoration));
         Assert.Equal(StepStatus.Done, r.Session.RecordOf(A).Status);
         Assert.Equal(new[] { P("1_1_100_1.png"), P("1_1_100_2.png") }, r.Session.RecordOf(A).Files);
@@ -253,8 +262,8 @@ public sealed class SeriesRunnerTests
         await r.CaptureAsync(saver.Save, cleanOnly: true);
 
         Assert.Equal(new[] { P("1_1_100_1.png") }, env.Images);
-        Assert.False(env.FileExists(P("1_1_100_2.json")));
         Assert.Equal(new[] { P("1_1_100_1.png") }, r.Session.RecordOf(A).Files);
+        Assert.Equal(new[] { "1_1_100_1.png" }, r.Session.RecordOf(A).Frames!.Select(f => f.File));
     }
 
     [Fact]
@@ -273,6 +282,27 @@ public sealed class SeriesRunnerTests
         Assert.Equal(0, env.Questions);
         Assert.NotEqual(old, env.Files[P("1_1_100_2.png")]);
         Assert.Equal(C, r.Current);
+        // Записи кадров шага заменены новыми.
+        Assert.Equal(new[] { env.Files[P("1_1_100_1.png")], env.Files[P("1_1_100_2.png")] }.Select(g => g.ToString()),
+            r.Session.RecordOf(A).Frames!.Select(f => f.Extra!["Gen"]));
+    }
+
+    [Fact]
+    public async Task Capture_Reshoot_Delete_LeaveJsonNextToImagesAlone()
+    {
+        // Парных .json у снимков серии нет: чужой .json рядом runner не переносит и не удаляет.
+        var (r, env, saver) = New();
+        env.Files[P("1_1_100_1.json")] = -5;
+        await r.CaptureAsync(saver.Save);
+        r.Reshoot(A);
+        await r.CaptureAsync(saver.Save);
+        Assert.Equal(-5, env.Files[P("1_1_100_1.json")]);
+
+        env.Deleted.Clear();
+        r.Delete(A);
+
+        Assert.Equal(new[] { P("1_1_100_1.png"), P("1_1_100_2.png") }, env.Deleted.Order(StringComparer.Ordinal));
+        Assert.Equal(-5, env.Files[P("1_1_100_1.json")]);
     }
 
     [Fact]
@@ -288,7 +318,7 @@ public sealed class SeriesRunnerTests
     }
 
     [Fact]
-    public async Task Delete_RemovesImagesAndJson_StepPendingAgain()
+    public async Task Delete_RemovesImages_StepPendingAgain_FramesGone()
     {
         var (r, env, saver) = New();
         await r.CaptureAsync(saver.Save);
@@ -297,9 +327,9 @@ public sealed class SeriesRunnerTests
 
         r.Delete(A);
 
-        Assert.Equal(new[] { P("1_1_100_1.json"), P("1_1_100_1.png"), P("1_1_100_2.json"), P("1_1_100_2.png") },
-            env.Deleted.OrderBy(x => x, StringComparer.Ordinal));
+        Assert.Equal(new[] { P("1_1_100_1.png"), P("1_1_100_2.png") }, env.Deleted.OrderBy(x => x, StringComparer.Ordinal));
         Assert.Equal(StepStatus.Pending, r.Session.RecordOf(A).Status);
+        Assert.Null(r.Session.RecordOf(A).Frames);
         Assert.Empty(env.Files);
         Assert.Equal(1, env.Persisted);
     }

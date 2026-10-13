@@ -59,7 +59,8 @@ public sealed class OverlayExportTests : IDisposable
     [Fact]
     public async Task SaveExactAsync_GridAndCrosshairOnly_FileHasNoOverlayPixels()
     {
-        var path = await _exp.SaveExactAsync(Black(), GuidesOnly, Meta(), Options(), Path.Combine(_dir, "exact.png"), overwrite: false);
+        var path = Path.Combine(_dir, "exact.png");
+        await _exp.SaveExactAsync(Black(), GuidesOnly, Meta(), Options(), path, overwrite: false);
 
         Assert.Equal(0, Pixels(path).Max());
     }

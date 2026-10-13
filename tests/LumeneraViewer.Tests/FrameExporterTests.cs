@@ -180,26 +180,51 @@ public sealed class FrameExporterTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveExactAsync_WritesExactPath_NoSuffixesNoClean_ExtraInJson()
+    public async Task SaveAsync_MetadataJson_FieldNamesAndOrderUnchanged()
+    {
+        // Состав .json обычного снимка — как до проектов серий (Extra у обычного снимка нет).
+        var path = await Exp().SaveAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), seriesIndex: 3);
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(path, ".json")));
+        Assert.Equal(new[]
+            {
+                "Time", "File", "Format", "Width", "Height", "CameraModel", "CameraSerial", "IsSimulated", "ExposureMs", "Gain",
+                "Adjustments", "Objective", "MicronsPerPixel", "OverlaysBurned", "SeriesIndex",
+            },
+            doc.RootElement.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(Path.GetFileName(path), doc.RootElement.GetProperty("File").GetString());
+        Assert.Equal(3, doc.RootElement.GetProperty("SeriesIndex").GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveExactAsync_WritesExactPath_NoSuffixesNoCleanNoJson()
     {
         var black = new CameraFrame { Bgr24 = new byte[400 * 300 * 3], Width = 400, Height = 300 };
         var overlays = new OverlayState { MicronsPerPixel = 1, ScaleBarEnabled = true, Color = OverlayColor.White, Background = false };
-        var o = Options(ImageFormatKind.Png); o.AlsoSaveClean = true; o.BurnOverlays = false;
+        var o = Options(ImageFormatKind.Png); o.AlsoSaveClean = true; o.BurnOverlays = false; o.WriteMetadata = true;
         var target = Path.Combine(_dir, "Серия 1", "1_1_100_2.png");
         var extra = new Dictionary<string, string> { ["Group"] = "1", ["Sample"] = "1", ["Magnification"] = "100", ["Kind"] = "2" };
 
-        var path = await Exp().SaveExactAsync(black, overlays, Meta(), o, target, overwrite: false, extra);
+        var m = await Exp().SaveExactAsync(black, overlays, Meta(), o, target, overwrite: false, extra);
 
-        Assert.Equal(target, path);
-        Assert.Equal(new[] { "1_1_100_2.json", "1_1_100_2.png" },
-            Directory.GetFiles(Path.GetDirectoryName(target)!).Select(Path.GetFileName).OrderBy(n => n, StringComparer.Ordinal));
-        Assert.True(MaxByte(Decode(path)) > 200);   // оверлей впечатан, хотя BurnOverlays = false: оформление задаёт вызывающий
-        using var doc = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(target, ".json")));
-        var r = doc.RootElement;
-        Assert.Equal("1_1_100_2.png", r.GetProperty("File").GetString());
-        Assert.Equal("100", r.GetProperty("Extra").GetProperty("Magnification").GetString());
-        Assert.Equal("2", r.GetProperty("Extra").GetProperty("Kind").GetString());
-        Assert.True(r.GetProperty("OverlaysBurned").GetBoolean());
+        Assert.Equal(new[] { "1_1_100_2.png" }, Directory.GetFiles(Path.GetDirectoryName(target)!).Select(Path.GetFileName));
+        Assert.True(MaxByte(Decode(target)) > 200);   // оверлей впечатан, хотя BurnOverlays = false: оформление задаёт вызывающий
+        Assert.Equal("1_1_100_2.png", m.File);
+        Assert.Equal((400, 300, ImageFormatKind.Png), (m.Width, m.Height, m.Format));
+        Assert.True(m.OverlaysBurned);
+        Assert.Null(m.SeriesIndex);
+        Assert.Equal((T, 12.5f, 2f, "10x", 0.65), (m.Time, m.ExposureMs, m.Gain, m.Objective, m.MicronsPerPixel));
+        Assert.Equal(("Simulated", "SIM-1", true), (m.CameraModel, m.CameraSerial, m.IsSimulated));
+        Assert.Equal(10, m.Adjustments.Brightness);
+        Assert.Equal("100", m.Extra!["Magnification"]);
+        Assert.Equal("2", m.Extra["Kind"]);
+    }
+
+    [Fact]
+    public async Task SaveExactAsync_NoOverlayNoExtra_MetadataSaysSo()
+    {
+        var m = await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Jpeg), Path.Combine(_dir, "a.jpg"), overwrite: false);
+        Assert.Equal(("a.jpg", ImageFormatKind.Jpeg, false), (m.File, m.Format, m.OverlaysBurned));
+        Assert.Null(m.Extra);
     }
 
     [Fact]
@@ -219,53 +244,33 @@ public sealed class FrameExporterTests : IDisposable
         Directory.CreateDirectory(_dir);
         var target = Path.Combine(_dir, "1_1_100_1.png");
         File.WriteAllText(target, "старый");
-        var path = await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: true);
-        Assert.Equal(target, path);
+        await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: true);
         Assert.Equal(64, Decode(target).PixelWidth);
         Assert.Single(Directory.GetFiles(_dir, "*.png"));
     }
 
-    [Fact]
-    public async Task SaveExactAsync_OverwriteWithoutMetadata_DeletesStaleJson()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SaveExactAsync_Overwrite_JsonNextToFileNotTouched(bool writeMetadata)
     {
+        // .json рядом со снимком серии экспорт не пишет и не удаляет — при любом выключателе.
+        Directory.CreateDirectory(_dir);
         var target = Path.Combine(_dir, "1_1_100_1.png");
-        await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: false);
-        Assert.True(File.Exists(Path.Combine(_dir, "1_1_100_1.json")));
+        var json = Path.Combine(_dir, "1_1_100_1.json");
+        File.WriteAllText(target, "старый");
+        File.WriteAllText(json, "чужой");
+        var o = Options(ImageFormatKind.Png); o.WriteMetadata = writeMetadata;
 
-        var o = Options(ImageFormatKind.Png); o.WriteMetadata = false;
         await Exp().SaveExactAsync(Frame(), null, Meta(), o, target, overwrite: true);
-        Assert.True(File.Exists(target));
-        Assert.False(File.Exists(Path.Combine(_dir, "1_1_100_1.json")));
-    }
 
-    [Fact]
-    public async Task SaveExactAsync_StaleJsonLocked_FrameSavedWithoutError()
-    {
-        var target = Path.Combine(_dir, "1_1_100_2.png");
-        await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: false);
-        var json = Path.Combine(_dir, "1_1_100_2.json");
-
-        var o = Options(ImageFormatKind.Png); o.WriteMetadata = false;
-        using (new FileStream(json, FileMode.Open, FileAccess.Read, FileShare.None))   // .json не удалить
-        {
-            var path = await Exp().SaveExactAsync(Frame(8, 8), null, Meta(), o, target, overwrite: true);
-            Assert.Equal(target, path);
-        }
-        Assert.Equal(8, Decode(target).PixelWidth);   // кадр перезаписан
+        Assert.Equal(64, Decode(target).PixelWidth);
+        Assert.Equal("чужой", File.ReadAllText(json));
     }
 
     [Fact]
     public void NewSettings_DefaultPrefix_IsZiScope()
         => Assert.Equal("ZI-scope", new LumeneraViewer.Settings.AppSettings().Export.Prefix);
-
-    [Fact]
-    public async Task SaveExactAsync_NoExtraMetadata_NoExtraField()
-    {
-        var target = Path.Combine(_dir, "a.png");
-        await Exp().SaveExactAsync(Frame(), null, Meta(), Options(ImageFormatKind.Png), target, overwrite: false);
-        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(_dir, "a.json")));
-        Assert.False(doc.RootElement.TryGetProperty("Extra", out _));
-    }
 
     [Theory]
     [InlineData(ImageFormatKind.Png, ".png")]

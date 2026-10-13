@@ -50,9 +50,12 @@ public sealed partial class FrameExporter : IDisposable
     /// Непустой <paramref name="overlays"/> впечатывается всегда — оформление решает вызывающий
     /// (BurnOverlays и AlsoSaveClean не учитываются); формат, качество и метаданные — из <paramref name="o"/>.
     /// Файл есть и <paramref name="overwrite"/> = false — <see cref="IOException"/> из задачи, файл не тронут.
-    /// <paramref name="extraMetadata"/> попадает в поле «Extra» файла .json.
+    /// Пишется только изображение: .json рядом не пишется и не удаляется (<see cref="ExportSettings.WriteMetadata"/>
+    /// не учитывается) — метаданные возвращаются, их хранит вызывающий (проект серии).
+    /// В результате <see cref="FrameMetadata.File"/> — имя записанного файла, <see cref="FrameMetadata.Extra"/> —
+    /// <paramref name="extraMetadata"/>.
     /// </summary>
-    public Task<string> SaveExactAsync(CameraFrame processed, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
+    public Task<FrameMetadata> SaveExactAsync(CameraFrame processed, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
         string fullPath, bool overwrite, IReadOnlyDictionary<string, string>? extraMetadata = null)
     {
         ArgumentNullException.ThrowIfNull(processed);
@@ -61,7 +64,7 @@ public sealed partial class FrameExporter : IDisposable
         {
             Folder = Path.GetDirectoryName(Path.GetFullPath(fullPath))!, Format = o.Format,
             JpegQuality = Math.Clamp(o.JpegQuality, 1, 100), TiffLzw = o.TiffLzw,
-            BurnOverlays = true, AlsoSaveClean = false, WriteMetadata = o.WriteMetadata, Prefix = o.Prefix,
+            BurnOverlays = true, AlsoSaveClean = false, WriteMetadata = false, Prefix = o.Prefix,
         };
         var path = Path.GetFullPath(fullPath);
         var extra = extraMetadata is null ? null : new Dictionary<string, string>(extraMetadata);
@@ -69,7 +72,7 @@ public sealed partial class FrameExporter : IDisposable
         return _worker.Run(() => SaveExact(processed, burn, meta, opt, path, overwrite, extra));
     }
 
-    private static string SaveExact(CameraFrame f, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
+    private static FrameMetadata SaveExact(CameraFrame f, OverlayState? overlays, CaptureMetadata meta, ExportSettings o,
         string path, bool overwrite, IReadOnlyDictionary<string, string>? extra)
     {
         if (!overwrite && File.Exists(path)) throw new IOException($"Файл уже существует: {path}");
@@ -80,20 +83,7 @@ public sealed partial class FrameExporter : IDisposable
         var enc = CreateEncoder(o);
         enc.Frames.Add(BitmapFrame.Create(img));
         WriteAtomic(path, enc.Save, overwrite);
-        var json = Path.ChangeExtension(path, ".json");
-        if (o.WriteMetadata)
-            WriteMetadata(json, Path.GetFileName(path), meta, f, o, overlays is not null, null, extra);
-        else if (overwrite && File.Exists(json))
-        {
-            // Метаданные прежнего снимка к новому файлу не относятся. Кадр уже сохранён: если .json
-            // убрать не удалось (занят, нет прав), это не ошибка сохранения.
-            try { File.Delete(json); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                System.Diagnostics.Debug.WriteLine($"Не удалось удалить устаревший {json}: {ex.Message}");
-            }
-        }
-        return path;
+        return Metadata(Path.GetFileName(path), meta, f, o, overlays is not null, null, extra);
     }
 
     private static string Save(CameraFrame f, OverlayState? overlays, CaptureMetadata meta, ExportSettings o, int? seriesIndex)
@@ -164,21 +154,17 @@ public sealed partial class FrameExporter : IDisposable
     private static void WriteAtomic(string path, Action<Stream> write, bool overwrite = true)
         => AtomicFile.Write(path, write, overwrite);   // overwrite = false и файл появился — IOException
 
-    private static void WriteMetadata(string path, string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned, int? seriesIndex,
-        IReadOnlyDictionary<string, string>? extra = null)
+    private static FrameMetadata Metadata(string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned,
+        int? seriesIndex, IReadOnlyDictionary<string, string>? extra = null) => new(
+        m.Time, imageName, o.Format, f.Width, f.Height,
+        m.CameraModel, m.CameraSerial, m.IsSimulated, m.ExposureMs, m.Gain, m.Adjustments,
+        m.Objective, m.MicronsPerPixel, overlaysBurned, seriesIndex, extra);
+
+    private static void WriteMetadata(string path, string imageName, CaptureMetadata m, CameraFrame f, ExportSettings o, bool overlaysBurned, int? seriesIndex)
     {
-        var dto = new MetadataFile(
-            m.Time, imageName, o.Format, f.Width, f.Height,
-            m.CameraModel, m.CameraSerial, m.IsSimulated, m.ExposureMs, m.Gain, m.Adjustments,
-            m.Objective, m.MicronsPerPixel, overlaysBurned, seriesIndex, extra);
+        var dto = Metadata(imageName, m, f, o, overlaysBurned, seriesIndex);
         WriteAtomic(path, s => JsonSerializer.Serialize(s, dto, Json));
     }
-
-    private sealed record MetadataFile(
-        DateTime Time, string File, ImageFormatKind Format, int Width, int Height,
-        string? CameraModel, string? CameraSerial, bool IsSimulated, float? ExposureMs, float? Gain,
-        ImageAdjustments Adjustments, string? Objective, double? MicronsPerPixel, bool OverlaysBurned, int? SeriesIndex,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Extra = null);
 
     public void Dispose() => _worker.Dispose();
 }

@@ -1,9 +1,15 @@
+using System.IO;
+using LumeneraViewer.Export;
+
 namespace LumeneraViewer.Series;
 
 public enum StepStatus { Pending, Done, Skipped }
 
-/// <summary>Состояние шага: статус, записанные файлы (полные пути), время съёмки.</summary>
-public sealed record StepRecord(StepStatus Status, IReadOnlyList<string> Files, DateTime? When)
+/// <summary>
+/// Состояние шага: статус, записанные файлы (полные пути), время съёмки и метаданные кадров —
+/// по одной записи на файл из <see cref="Files"/> в том же порядке (<see cref="FrameMetadata.File"/> — имя файла).
+/// </summary>
+public sealed record StepRecord(StepStatus Status, IReadOnlyList<string> Files, DateTime? When, IReadOnlyList<FrameMetadata>? Frames = null)
 {
     public static StepRecord Pending { get; } = new(StepStatus.Pending, Array.Empty<string>(), null);
 }
@@ -19,11 +25,13 @@ public sealed class SeriesSession
     private readonly Dictionary<SeriesStepKey, StepRecord> _records = new();
     private readonly List<SeriesStepKey> _extra = new();
 
-    public SeriesSession(SeriesPlan plan, string folder)
+    /// <param name="projectFile">Полный путь файла проекта <c>.zisc</c>; null — <c>&lt;папка&gt;\&lt;имя серии&gt;.zisc</c>.</param>
+    public SeriesSession(SeriesPlan plan, string folder, string? projectFile = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         Plan = plan;
         Folder = folder ?? throw new ArgumentNullException(nameof(folder));
+        ProjectFile = projectFile ?? Path.Combine(folder, SeriesStore.ProjectFileName(plan));
         _steps = plan.EnumerateSteps();
         for (var i = 0; i < _steps.Count; i++)
         {
@@ -35,6 +43,9 @@ public sealed class SeriesSession
 
     public SeriesPlan Plan { get; }
     public string Folder { get; }
+
+    /// <summary>Файл проекта серии (<c>.zisc</c>), в который пишется состояние.</summary>
+    public string ProjectFile { get; }
 
     /// <summary>Шаг, который снимет следующее «Снять шаг» (может быть вне плана).</summary>
     public SeriesStepKey Current { get; private set; }
@@ -78,11 +89,12 @@ public sealed class SeriesSession
     /// Шаг снят. Шаг вне плана попадает в <see cref="ExtraSteps"/>. Если снят текущий — переход
     /// к следующему неснятому (после пересъёмки или шага вне плана — к первому неснятому).
     /// </summary>
-    public void MarkDone(SeriesStepKey k, IReadOnlyList<string> files)
+    /// <param name="frames">Метаданные кадров — по одной на файл, в том же порядке; заменяют прежние записи шага.</param>
+    public void MarkDone(SeriesStepKey k, IReadOnlyList<string> files, IReadOnlyList<FrameMetadata>? frames = null)
     {
         ArgumentNullException.ThrowIfNull(files);
         if (!IsInPlan(k) && !_extra.Contains(k)) _extra.Add(k);
-        _records[k] = new StepRecord(StepStatus.Done, files.ToArray(), DateTime.Now);
+        _records[k] = new StepRecord(StepStatus.Done, files.ToArray(), DateTime.Now, frames?.ToArray());
         if (k == Current)
         {
             Current = (Reshooting ? NextPending() : NextPending(k)) ?? k;

@@ -129,7 +129,7 @@
                     <TextBlock Text="Начать серию" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
-            <ui:Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Открыть серию…" Icon="{ui:SymbolIcon Folder24}"
+            <ui:Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Открыть проект серии…" Icon="{ui:SymbolIcon Folder24}" ToolTip="Открыть файл проекта серии (.zisc) и продолжить с того же шага"
                        Command="{Binding OpenSeriesCommand}"/>
         </StackPanel>
 
@@ -210,7 +210,7 @@
             <WrapPanel>
                 <ui:Button Style="{StaticResource Small}" Content="Открыть папку" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenSeriesFolderCommand}"/>
                 <ui:Button Style="{StaticResource Small}" Content="Завершить серию" Icon="{ui:SymbolIcon Stop24}" Command="{Binding FinishSeriesCommand}"
-                           ToolTip="Серия сохранена в своей папке; продолжить можно через «Открыть серию…»"/>
+                           ToolTip="Проект серии (.zisc) лежит в её папке; продолжить можно через «Открыть проект серии…»"/>
             </WrapPanel>
         </StackPanel>
     </Grid>
