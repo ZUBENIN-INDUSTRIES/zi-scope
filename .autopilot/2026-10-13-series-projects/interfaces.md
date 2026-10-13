@@ -31,3 +31,11 @@
 ## Что построено
 
 <!-- дописывает оркестратор по блоку INTERFACES из отчёта таска -->
+
+## Из таска 01 — проект серии .zisc
+
+- `public sealed record FrameMetadata(...)` в `Export/FrameMetadata.cs` — тот же состав, что у .json обычного снимка; обычный снимок пишет .json из него.
+- `Task<FrameMetadata> FrameExporter.SaveExactAsync(...)` — только изображение, .json не пишет и не трогает.
+- `StepRecord(..., IReadOnlyList<FrameMetadata>? Frames = null)`, `SeriesSession(plan, folder, projectFile = null)`, `ProjectFile`, `MarkDone(k, files, frames = null)`.
+- `SeriesStore`: `Extension=".zisc"`, `Format="zi-scope-series/2"`, `ProjectFileName(p)`, `Save(s)`, `Load(projectFile)`, `FindProject(folder)`; `FileName` удалён.
+- `delegate Task<FrameMetadata> SaveFrameKind(...)`; `OpenSeriesCommand` → OpenFileDialog `*.zisc`, кнопка «Открыть проект серии…».

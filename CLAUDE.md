@@ -26,7 +26,7 @@ src/LumeneraViewer/
   Imaging/      ImageAdjustments + DeepColor (уровни, кривые, HSL, локальные операции), ImageProcessor(.Local), FrameAnalysis
   Calibration/  namespace LumeneraViewer.ImageCalibration: ScaleLineDetector, ScaleTextParser, ScaleTextRecognizer (офлайн-OCR Windows.Media.Ocr), PixelSizeTable
   Overlays/     OverlayState + OverlayRenderer (один код рисования для превью и файла), ScaleBarMath, Calibration (объективы), Measurement
-  Series/       SeriesPlan, SeriesSession, SeriesNaming, SeriesStore — модель серии без UI
+  Series/       SeriesPlan, SeriesSession, SeriesNaming, SeriesStore (проект `.zisc`) — модель серии без UI
   Export/       FrameExporter (5 форматов, JSON-метаданные, атомарная запись, SaveExactAsync для серий), StaWorker
   Settings/     AppSettings, SettingsStore (JSON, миграции), MagnificationSettings, Profiles (профили), ProfileFiles (.zcolor/.zscope)
   ViewModels/   MainViewModel (хост и конвейер кадров), *PanelViewModel (вкладки), SeriesRunner, NotificationLog, FrameBufferPool
@@ -34,7 +34,7 @@ src/LumeneraViewer/
   UI/           Dialogs, Converters, ProfileFileFilters, Controls/ (LabeledSlider, ToneCurveEditor, ZoomPanHost…), Effects/ (Palette, Theme, Pill, Effects.xaml)
 tests/LumeneraViewer.Tests/   xUnit по чистой логике и швам
 installer/      README-УСТАНОВКА.txt в git; infinity*.exe (драйверы, 39 МБ) — только локально
-docs/adr/       решения 0001–0012
+docs/adr/       решения 0001–0013
 publish.ps1     сборка папки для переноса
 ```
 
@@ -67,9 +67,9 @@ publish.ps1     сборка папки для переноса
 - Оверлей: `ScalePanel.BuildOverlayState()` → неизменяемый `OverlayState` → `OverlayRenderer.Draw(dc, s, size, scale, guideScale)`; превью перерисовывается по `ScalePanel.Changed`. Плашка и измерения и в превью, и в файле в масштабе `ExportScale(W)` = W/1600 (превью = будущий файл); сетка, перекрестие и проводимая линия на превью — `guideScale` = 1/зум.
 - Плашка: шрифт Arial (`Bold`), цвета текста/линейки/подложки — `ScaleBarSettings.TextColor/BarColor/BackgroundColor` (`#RRGGBB`, null — от общего `Color`), `BackgroundOpacity`; язык единиц на кадре — `ScaleBarSettings.UnitLanguage` (мкм/мм или µm/mm, плашка и подписи измерений, `ScaleBarMath.FormatLength(…, language)`); набор цветов — `Overlays/OverlayColors` (цвета на снимке, не UI-палитра).
 - В файл оверлей идёт только через `OverlayState.ForExport()` (без сетки, перекрестия, недорисованной линии; null — нечего впечатывать).
-- Экспорт: `CapturePanel` берёт `LatestProcessedFrame` + `BuildOverlayState()` в UI-потоке → `FrameExporter.SaveAsync` → `StaWorker` пишет файл, `_clean`-копию и `.json`. Серия — `SaveExactAsync` (ровно заданный путь, без `_2`/`_clean`, доп. поля в `"Extra"` .json).
+- Экспорт: `CapturePanel` берёт `LatestProcessedFrame` + `BuildOverlayState()` в UI-потоке → `FrameExporter.SaveAsync` → `StaWorker` пишет файл, `_clean`-копию и `.json` (из `Export/FrameMetadata`). Серия — `SaveExactAsync` (ровно заданный путь, без `_2`/`_clean`, .json не пишет; возвращает `FrameMetadata`, доп. поля — в его `Extra`).
 - Главный снимок (Пробел и кнопка) — `host.PrimaryCaptureCommand`: при `SeriesPanel.IsActive` снимает шаг серии, иначе `CapturePanel.CaptureCommand`.
-- Серия: `SeriesRunner(SeriesSession, ISeriesEnvironment)` ведёт шаги; состояние — `series.zscope-series.json` в папке серии (`SeriesStore`); при активной серии внизу показывается `SeriesMap`.
+- Серия: `SeriesRunner(SeriesSession, ISeriesEnvironment)` ведёт шаги; состояние — файл проекта `<имя серии>.zisc` в папке серии (`SeriesStore`: `Extension`, `Format "zi-scope-series/2"`, `ProjectFileName`, `Save`, `Load(путь .zisc)`, `FindProject(папка)`); метаданные кадров всех снятых шагов — одним списком `Frames` в нём, у снимков серии своего .json нет; «Открыть проект серии…» (`SeriesPanelViewModel.OpenSeriesCommand`, OpenFileDialog `*.zisc`); при активной серии внизу показывается `SeriesMap`.
 - Калибровка по снимку: `ScaleLineDetector` ищет линию (5 цветов) → `ScaleTextRecognizer` читает подпись офлайн-OCR (сначала над линией, потом под ней: `TextRegionAbove/TextRegionBelow`) → `ScaleTextParser` → `ScalePanel.SaveCalibration(mag, k)`; таблица мкм/px — `PixelSizeTable`.
 - Драйверы: `DriverStartupFlow.EnsureDriversAsync` при старте; установщик ищется в `<папка exe>\Drivers\`.
 - Camera/Imaging/Overlays/Export/Series/Settings не знают хост; WPF-типы — в Overlays/Export/Calibration (DrawingContext, энкодеры, BitmapSource); хост знают только ViewModels/Views/UI/Drivers.
@@ -104,7 +104,7 @@ publish.ps1     сборка папки для переноса
 ## Тесты
 
 - Лежат в `tests/LumeneraViewer.Tests/`, один файл — один класс; `InternalsVisibleTo` открывает internal-швы.
-- Покрыто: `ImageProcessor`, `DeepColor`, `FrameAnalysis`, `AutoExposure`, `ScaleBarMath`, `Calibration`, `OverlayState` и `ForExport`, `FrameExporter`, `SettingsStore` и миграции, `MagnificationSettings`, `ProfileFiles`, серия (`SeriesPlan/Session/Naming/Store/Runner`), калибровка по снимку (`ScaleLineDetector`, `ScaleTextParser`, `PixelSizeTable`), `CurveEditing`, `NotificationLog`, `Palette`, `DriverService`, `SimulatedCamera`, `FrameBufferPool` и троттлинг (`ReliabilityTests`), `LuCamInteropTests`.
+- Покрыто: `ImageProcessor`, `DeepColor`, `FrameAnalysis`, `AutoExposure`, `ScaleBarMath`, `Calibration`, `OverlayState` и `ForExport`, `FrameExporter`, `SettingsStore` и миграции, `MagnificationSettings`, `ProfileFiles`, серия (`SeriesPlan/Session/Naming/Store/Runner`, проект `.zisc` — в `SeriesStoreTests`), калибровка по снимку (`ScaleLineDetector`, `ScaleTextParser`, `PixelSizeTable`), `CurveEditing`, `NotificationLog`, `Palette`, `DriverService`, `SimulatedCamera`, `FrameBufferPool` и троттлинг (`ReliabilityTests`), `LuCamInteropTests`.
 - Шов серии для тестов — `ISeriesEnvironment` (увеличение, калибровка, файлы, подтверждение перезаписи).
 - Не покрыто: UI, `MainViewModel` целиком, OCR на живых снимках, работа с живой камерой.
 
@@ -122,6 +122,7 @@ publish.ps1     сборка папки для переноса
 - Порядок создания sub-VM в конструкторе `MainViewModel` важен: `MeasurePanel` подписывается на `host.ScalePanel` и создаётся после него.
 - `OverlayState.IsEmpty` решает, впечатывать ли оверлей: новый элемент без правки `IsEmpty` (и `ForExport`, если он только экранный) в файл попадёт неправильно.
 - Калибровка и длина плашки старого формата (объективы) при миграции не переносятся в увеличения — только вручную.
+- В `.zisc` записи `Frames` сопоставляются с файлами шага по имени `File` (без учёта регистра, имя относительное): переименованный файл потеряет метаданные; старых `series.zscope-series.json` и .json у кадров серии программа не читает.
 - Закрытие окна: `CapturePanel` и серия ждут дописывания снимков (до 10 с), `Shutdown` закрывает камеру в фоне (до 3 с).
 
 ## Как добавить свою функцию
@@ -162,6 +163,7 @@ publish.ps1     сборка папки для переноса
 3. Энкодер в `CreateEncoder` (`Export/FrameExporter.Save.cs`), запись выполняется на `StaWorker`.
 4. Пункт в `CapturePanelViewModel.AllFormats` (`FormatOption(Kind, "Название")`) — серия берёт тот же список.
 5. Тест в `tests/LumeneraViewer.Tests/FrameExporterTests.cs`.
+- Метаданные кадра — `Export/FrameMetadata.cs`; серия кладёт их в `.zisc`, обычный снимок — в .json.
 
 ## Как здесь работает Autopilot
 
@@ -171,4 +173,36 @@ publish.ps1     сборка папки для переноса
 
 Если работа продолжается — скажи «продолжи автопилот»: состояние поднимется
 из `.autopilot/state.js`, переспрашивать ничего не нужно.
+
+### Правка без автопилота
+
+Мелкий баг или доводка после сборки — обычная сессия, без прогона.
+
+Сначала прочитай:
+1. `.autopilot/PROGRESS.md` — что не доделано, известные баги, о чём договорились с пользователем.
+2. Что правили после последней сборки — первая строка таблицы в «История git».
+3. Только если правка их касается: почему сделано так — `docs/adr/`; что именно просили — `manifest.md` в папке сборки (указана в начале `PROGRESS.md`).
+
+После правки:
+- коммит — по правилам из «История git»;
+- строка в «Правки без автопилота» в `PROGRESS.md`: дата — что — почему;
+- починенный пункт из «Не доделано» или «Известные баги» — удали;
+- договорились с пользователем о том, что следующая сборка не должна пересматривать, — строка в «Договорились», его словами.
+
+### История git
+
+Целиком не читай — бери срез под вопрос:
+
+| Вопрос | Команда |
+|---|---|
+| что правили после последней сборки | `git log --oneline "$(git log -1 --format=%h --grep='^Autopilot: сборка сдана')"..HEAD -- . ':(exclude).autopilot'` |
+| всё, что делали ради требования | `git log --oneline --grep="R02"` |
+| история файла | `git log --oneline -10 -- <файл>` |
+| когда появился или исчез код | `git log --oneline -S "<фрагмент>"` |
+| почему строка такая | `git blame -L <с>,<по> <файл>`, затем `git show <sha>` |
+| что внутри коммита | `git show --stat <sha>` |
+
+Срез длиннее ~30 коммитов — отдай его субагенту и возьми выжимку в десять строк.
+
+Коммит: заголовок — что (`fix: даты в одном формате`), тело — почему, трейлер `--trailer "Requirements: R02"`, если правка касается требования из `manifest.md`. Заголовок `Autopilot: сборка сдана` пишет только автопилот — по нему находят последнюю сборку.
 <!-- autopilot:end -->
