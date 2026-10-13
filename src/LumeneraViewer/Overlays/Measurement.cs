@@ -1,4 +1,5 @@
 using System.Windows;
+using LumeneraViewer.Settings;
 
 namespace LumeneraViewer.Overlays;
 
@@ -11,10 +12,10 @@ public sealed record Measurement(Point A, Point B)
 public static class MeasurementText
 {
     /// <summary>При калибровке — «N мкм»/«N мм», без неё — «N px» (пиксели за микроны не выдаются).</summary>
-    public static string Label(Measurement m, double? umPerPx)
+    public static string Label(Measurement m, double? umPerPx, UnitLanguage language = UnitLanguage.Russian)
     {
         var px = m.LengthPixels;
-        if (umPerPx is > 0 and var k) return ScaleBarMath.FormatLength(px * k);
+        if (umPerPx is > 0 and var k) return ScaleBarMath.FormatLength(px * k, LengthUnit.Micrometers, language);
         return ScaleBarMath.Number(px, 1) + " px";
     }
 }

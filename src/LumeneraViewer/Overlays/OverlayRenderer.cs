@@ -79,7 +79,7 @@ public static class OverlayRenderer
         if (!s.ShowsScaleBar || frame.Width <= 0 || frame.Height <= 0) return null;
         if (!(scale > 0) || double.IsInfinity(scale)) scale = 1;
         var (microns, barPx, _) = ScaleBarMath.Choose(s.MicronsPerPixel!.Value, (int)frame.Width, 0.2, s.FixedMicrons);
-        var text = Text(ScaleBarMath.FormatLength(microns, s.Unit), Math.Clamp(s.FontSize, 6, 200) * scale, color, s.Bold ? FaceBold : Face);
+        var text = Text(ScaleBarMath.FormatLength(microns, s.Unit, s.UnitLanguage), Math.Clamp(s.FontSize, 6, 200) * scale, color, s.Bold ? FaceBold : Face);
 
         var pad = Padding * scale;
         var th = Math.Clamp(s.Thickness, 1, 50) * scale;
@@ -144,7 +144,7 @@ public static class OverlayRenderer
         }
         if (len < 0.5) return;
 
-        var text = Text(MeasurementText.Label(m, s.MicronsPerPixel), MeasureFont * scale, color);
+        var text = Text(MeasurementText.Label(m, s.MicronsPerPixel, s.UnitLanguage), MeasureFont * scale, color);
         var mid = new Point((m.A.X + m.B.X) / 2, (m.A.Y + m.B.Y) / 2);
         // Подпись — сбоку от середины, со стороны нормали, смотрящей вверх.
         var side = n.Y > 0 ? -n : n;

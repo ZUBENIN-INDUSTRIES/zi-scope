@@ -29,6 +29,7 @@ public partial class ScalePanelViewModel : ObservableObject
     public string[] Corners { get; } = { "Справа снизу", "Слева снизу", "Справа сверху", "Слева сверху" };
     public string[] ColorNames { get; } = { "Белый", "Чёрный", "Жёлтый" };
     public string[] UnitNames { get; } = { "мкм", "мм" };
+    public string[] UnitLanguageNames { get; } = { "Русский — мкм, мм", "English — µm, mm" };
 
     public ScalePanelViewModel(MainViewModel host)
     {
@@ -295,6 +296,7 @@ public partial class ScalePanelViewModel : ObservableObject
         set => Set(() => Bar.BackgroundOpacity = Math.Clamp(Math.Round(value) / 100.0, 0, 1));
     }
     public bool Bold { get => Bar.Bold; set => Set(() => Bar.Bold = value); }
+    public int UnitLanguageIndex { get => (int)Bar.UnitLanguage; set => Set(() => Bar.UnitLanguage = (UnitLanguage)Math.Clamp(value, 0, 1)); }
     public bool Background { get => Bar.Background; set => Set(() => Bar.Background = value); }
     public double FontSize { get => Bar.FontSize; set => Set(() => Bar.FontSize = Math.Round(Math.Clamp(value, 10, 48))); }
     public double Thickness { get => Bar.Thickness; set => Set(() => Bar.Thickness = Math.Round(Math.Clamp(value, 2, 12))); }

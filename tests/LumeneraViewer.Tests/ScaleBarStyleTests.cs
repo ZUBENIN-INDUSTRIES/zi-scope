@@ -114,3 +114,27 @@ public class MicronsPerPixelInputTests
     [InlineData("мкм")]
     public void Rejects(string text) => Assert.False(LumeneraViewer.ViewModels.ScalePanelViewModel.TryParseMicronsPerPixel(text, out _));
 }
+
+public class UnitLanguageTests
+{
+    [Theory]
+    [InlineData(200, LengthUnit.Micrometers, UnitLanguage.Russian, "200 мкм")]
+    [InlineData(200, LengthUnit.Micrometers, UnitLanguage.English, "200 µm")]
+    [InlineData(1500, LengthUnit.Micrometers, UnitLanguage.English, "1.5 mm")]
+    [InlineData(500, LengthUnit.Millimeters, UnitLanguage.Russian, "0.5 мм")]
+    [InlineData(500, LengthUnit.Millimeters, UnitLanguage.English, "0.5 mm")]
+    public void FormatLength_InChosenLanguage(double microns, LengthUnit unit, UnitLanguage lang, string expected)
+        => Assert.Equal(expected, ScaleBarMath.FormatLength(microns, unit, lang));
+
+    [Fact]
+    public void MeasurementLabel_English()
+        => Assert.Equal("50 µm", MeasurementText.Label(new Measurement(new Point(0, 0), new Point(100, 0)), 0.5, UnitLanguage.English));
+
+    [Fact]
+    public void FromSettings_CarriesLanguage()
+    {
+        var a = new AppSettings();
+        a.ScaleBar.UnitLanguage = UnitLanguage.English;
+        Assert.Equal(UnitLanguage.English, OverlayState.FromSettings(a).UnitLanguage);
+    }
+}

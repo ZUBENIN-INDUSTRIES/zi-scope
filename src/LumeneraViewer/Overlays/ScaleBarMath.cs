@@ -39,13 +39,16 @@ public static class ScaleBarMath
     /// <summary>&lt; 1000 мкм → «N мкм», иначе «N мм»; до 2 знаков после точки (меньше 1 — 2 значащие цифры), без хвостовых нулей.</summary>
     public static string FormatLength(double microns) => FormatLength(microns, LengthUnit.Micrometers);
 
-    /// <summary>Micrometers — автоматически мкм/мм (как FormatLength); Millimeters — всегда мм.</summary>
-    public static string FormatLength(double microns, LengthUnit unit)
+    /// <summary>Micrometers — автоматически мкм/мм (как FormatLength); Millimeters — всегда мм. Язык — «мкм/мм» или «µm/mm».</summary>
+    public static string FormatLength(double microns, LengthUnit unit, UnitLanguage language = UnitLanguage.Russian)
     {
         if (unit == LengthUnit.Millimeters || Math.Abs(microns) >= 1000)
-            return Num(microns / 1000) + " мм";
-        return Num(microns) + " мкм";
+            return Num(microns / 1000) + " " + MillimeterName(language);
+        return Num(microns) + " " + MicrometerName(language);
     }
+
+    public static string MicrometerName(UnitLanguage language) => language == UnitLanguage.English ? "µm" : "мкм";
+    public static string MillimeterName(UnitLanguage language) => language == UnitLanguage.English ? "mm" : "мм";
 
     private static string Num(double v) => Number(v, 2);
 

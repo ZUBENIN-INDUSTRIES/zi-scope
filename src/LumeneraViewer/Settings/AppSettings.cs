@@ -70,6 +70,9 @@ public enum OverlayColor { White, Black, Yellow }
 
 public enum LengthUnit { Micrometers, Millimeters }
 
+/// <summary>Язык подписей единиц на кадре: «мкм/мм» или «µm/mm».</summary>
+public enum UnitLanguage { Russian, English }
+
 public sealed class ScaleBarSettings
 {
     public bool Enabled { get; set; } = true;
@@ -87,6 +90,8 @@ public sealed class ScaleBarSettings
     public double Thickness { get; set; } = 4;
     public double? FixedMicrons { get; set; }
     public LengthUnit Unit { get; set; }
+    /// <summary>Подписи единиц на плашке и измерениях в кадре.</summary>
+    public UnitLanguage UnitLanguage { get; set; }
     /// <summary>Позиция после перетаскивания, в долях кадра 0..1; null — угол.</summary>
     public double? CustomX { get; set; }
     public double? CustomY { get; set; }

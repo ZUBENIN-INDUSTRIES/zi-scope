@@ -30,6 +30,7 @@ public sealed record OverlayState
     /// <summary>Длина вручную, мкм; null — «Авто».</summary>
     public double? FixedMicrons { get; init; }
     public LengthUnit Unit { get; init; } = LengthUnit.Micrometers;
+    public UnitLanguage UnitLanguage { get; init; } = UnitLanguage.Russian;
     /// <summary>Левый верхний угол плашки в долях кадра (0..1); null — в углу Corner.</summary>
     public Point? CustomPosition { get; init; }
 
@@ -82,6 +83,7 @@ public sealed record OverlayState
             Thickness = sb.Thickness,
             FixedMicrons = sb.FixedMicrons is > 0 ? sb.FixedMicrons : null,
             Unit = sb.Unit,
+            UnitLanguage = sb.UnitLanguage,
             CustomPosition = sb.CustomX is { } x && sb.CustomY is { } y ? new Point(x, y) : null,
             Measurements = measurements?.ToArray() ?? Array.Empty<Measurement>(),
             Crosshair = g.Crosshair,
