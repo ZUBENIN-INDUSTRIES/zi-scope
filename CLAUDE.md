@@ -64,7 +64,8 @@ publish.ps1     сборка папки для переноса
 - Вкладки: RadioButton со стилем `ZsActivityTab` и `Tag` (`camera|color|scale|series|capture`) в `TabBar`; страница с тем же `Tag` в `Grid Pages`; выбранная — в `Settings.Extensions["ui.rightTab"]`; клик по открытой вкладке сворачивает панель.
 - Увеличения: у каждого ×N свой `MagnificationProfile` (цвет, экспозиция, усиление, мкм/px, длина плашки). `host.CurrentMagnification = n` → `StoreLive` → `LoadLive` → применить; `SaveSettingsSoon` сам пишет живые значения в профиль текущего увеличения.
 - Профили: `ColorProfile` в `Settings.ColorProfiles` (`host.ApplyColorProfile`), файлы `.zcolor`/`.zscope` через `ProfileFiles`; `host.LoadConfiguration(s)` заменяет все настройки без перезапуска (через `SettingsReplaced`).
-- Оверлей: `ScalePanel.BuildOverlayState()` → неизменяемый `OverlayState` → `OverlayRenderer.Draw`; превью перерисовывается по `ScalePanel.Changed`, масштаб на превью = 1/зум, в файле = `OverlayRenderer.ExportScale(W)` = W/1600.
+- Оверлей: `ScalePanel.BuildOverlayState()` → неизменяемый `OverlayState` → `OverlayRenderer.Draw(dc, s, size, scale, guideScale)`; превью перерисовывается по `ScalePanel.Changed`. Плашка и измерения и в превью, и в файле в масштабе `ExportScale(W)` = W/1600 (превью = будущий файл); сетка, перекрестие и проводимая линия на превью — `guideScale` = 1/зум.
+- Плашка: шрифт Arial (`Bold`), цвета текста/линейки/подложки — `ScaleBarSettings.TextColor/BarColor/BackgroundColor` (`#RRGGBB`, null — от общего `Color`), `BackgroundOpacity`; набор цветов — `Overlays/OverlayColors` (цвета на снимке, не UI-палитра).
 - В файл оверлей идёт только через `OverlayState.ForExport()` (без сетки, перекрестия, недорисованной линии; null — нечего впечатывать).
 - Экспорт: `CapturePanel` берёт `LatestProcessedFrame` + `BuildOverlayState()` в UI-потоке → `FrameExporter.SaveAsync` → `StaWorker` пишет файл, `_clean`-копию и `.json`. Серия — `SaveExactAsync` (ровно заданный путь, без `_2`/`_clean`, доп. поля в `"Extra"` .json).
 - Главный снимок (Пробел и кнопка) — `host.PrimaryCaptureCommand`: при `SeriesPanel.IsActive` снимает шаг серии, иначе `CapturePanel.CaptureCommand`.
@@ -116,7 +117,8 @@ publish.ps1     сборка папки для переноса
 - Цвета трека HSL в `DeepColorWindow.xaml` — переопределённые ключи WPF-UI внутри `LabeledSlider` (`SliderTrackFill…`, `AccentFillColorDefaultBrush`); при смене палитры проверять.
 - `LuCamCamera.Stop()` ждёт поток конвертации без таймаута — отсюда правило про `BeginInvoke`.
 - Запущенное приложение или параллельная сборка/тесты блокируют файлы в `bin/`/`obj/` — закрой программу и собирай последовательно.
-- P/Invoke к `lucamapi.dll` не проверен на живой камере — см. `docs/adr/0001-lucamapi-dll-signatures.md`.
+- P/Invoke к `lucamapi.dll` проверен на живой INFINITY4-11 (USB 2.0, 4008×2672): подключение, поток, экспозиция/усиление, снимки во всех форматах. Полный кадр по USB 2.0 — ~3 к/с.
+- Потолок выдержки LuCam зависит от частоты кадров (на 2,75 к/с — 364 мс). `LuCamCamera` при открытии опрашивает частоты (`LucamEnumAvailableFrameRates`) и для длинной выдержки сам переключает частоту (`ExposureRates.Choose`); на живой камере это ещё не проверено. Минимум выдержки драйвер сообщает 0 — показываем от `ExposureRates.MinExposureMs`.
 - Порядок создания sub-VM в конструкторе `MainViewModel` важен: `MeasurePanel` подписывается на `host.ScalePanel` и создаётся после него.
 - `OverlayState.IsEmpty` решает, впечатывать ли оверлей: новый элемент без правки `IsEmpty` (и `ForExport`, если он только экранный) в файл попадёт неправильно.
 - Калибровка и длина плашки старого формата (объективы) при миграции не переносятся в увеличения — только вручную.

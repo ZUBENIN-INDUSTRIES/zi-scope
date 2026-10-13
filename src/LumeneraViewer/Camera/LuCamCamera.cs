@@ -24,6 +24,10 @@ public sealed class LuCamCamera : ICamera
     private volatile bool _running;
     private AutoResetEvent? _frameSignal;
     private int _rawFrameBytes;                         // минимальная длина сырого кадра
+    private LucamFrameFormat _format;
+    private float _rate;                                // текущая частота кадров
+    private IReadOnlyList<(float Rate, float MaxExposureMs)>? _rates;   // null — переключать частоту нельзя
+    private readonly object _formatLock = new();
 
     public LuCamCamera(CameraSettings settings) => _settings = settings;
 
@@ -47,6 +51,9 @@ public sealed class LuCamCamera : ICamera
             if (!NativeMethods.LucamSetFormat(_handle, ref fmt, rate)) throw Fail("Не удалось переключить камеру в 8-битный режим");
         }
         _pixelFormat = fmt.PixelFormat;
+        _format = fmt;
+        _rate = rate;
+        _rates = ProbeRates(fmt, rate);
         _width = (int)(fmt.Width / Math.Max((ushort)1, fmt.SubSampleX));
         _height = (int)(fmt.Height / Math.Max((ushort)1, fmt.SubSampleY));
         _rawFrameBytes = _width * _height * BytesPerPixel(_pixelFormat);
@@ -112,8 +119,12 @@ public sealed class LuCamCamera : ICamera
     public PropertyRange? GetRange(CameraProperty p)
     {
         if (_handle == 0) return null;
-        return NativeMethods.LucamPropertyRange(_handle, PropId(p), out float min, out float max, out float def, out _)
-            ? new PropertyRange(min, max, def) : null;
+        if (!NativeMethods.LucamPropertyRange(_handle, PropId(p), out float min, out float max, out float def, out _)) return null;
+        if (p != CameraProperty.Exposure) return new PropertyRange(min, max, def);
+        // Минимум драйвер сообщает 0; максимум — для текущей частоты, а на более низкой выдержка длиннее.
+        min = Math.Max(min, ExposureRates.MinExposureMs);
+        if (_rates is { Count: > 0 } t) max = Math.Max(max, ExposureRates.MaxExposure(t));
+        return new PropertyRange(min, Math.Max(max, min), Math.Clamp(def, min, Math.Max(max, min)));
     }
 
     public float? Get(CameraProperty p)
@@ -123,7 +134,61 @@ public sealed class LuCamCamera : ICamera
     }
 
     public bool Set(CameraProperty p, float value)
-        => _handle != 0 && NativeMethods.LucamSetProperty(_handle, PropId(p), value, 0);
+    {
+        if (_handle == 0) return false;
+        if (p == CameraProperty.Exposure && _rates is { Count: > 0 } t)
+        {
+            var rate = ExposureRates.Choose(t, value);
+            if (Math.Abs(rate - _rate) > 1e-3f) SwitchRate(rate);
+        }
+        return NativeMethods.LucamSetProperty(_handle, PropId(p), value, 0);
+    }
+
+    /// <summary>
+    /// Максимум выдержки на каждой доступной частоте: формат ставится по очереди, затем исходная частота
+    /// возвращается. Любой сбой — null (выдержка ограничена текущей частотой, как раньше).
+    /// </summary>
+    private IReadOnlyList<(float Rate, float MaxExposureMs)>? ProbeRates(LucamFrameFormat fmt, float original)
+    {
+        try
+        {
+            int n = NativeMethods.LucamEnumAvailableFrameRates(_handle, 0, null);
+            if (n <= 1 || n > 64) return null;
+            var rates = new float[n];
+            n = Math.Min(n, NativeMethods.LucamEnumAvailableFrameRates(_handle, (uint)n, rates));
+            var table = new List<(float, float)>();
+            foreach (var r in rates.Take(n).Where(r => r > 0).Distinct())
+            {
+                var f = fmt;
+                if (NativeMethods.LucamSetFormat(_handle, ref f, r)
+                    && NativeMethods.LucamPropertyRange(_handle, NativeMethods.PropExposure, out _, out float max, out _, out _) && max > 0)
+                    table.Add((r, max));
+            }
+            var back = fmt;
+            if (!NativeMethods.LucamSetFormat(_handle, ref back, original)) return null;
+            return table.Count > 1 ? table : null;
+        }
+        catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException or MarshalDirectiveException)
+        {
+            var back = fmt;
+            NativeMethods.LucamSetFormat(_handle, ref back, original);
+            return null;
+        }
+    }
+
+    /// <summary>Сменить частоту кадров на ходу: поток останавливается, формат ставится с новой частотой, поток снова идёт.</summary>
+    private void SwitchRate(float rate)
+    {
+        lock (_formatLock)
+        {
+            var streaming = _running;
+            if (streaming) NativeMethods.LucamStreamVideoControl(_handle, NativeMethods.StopStreaming, 0);
+            var f = _format;
+            if (NativeMethods.LucamSetFormat(_handle, ref f, rate)) _rate = rate;
+            if (streaming && !NativeMethods.LucamStreamVideoControl(_handle, NativeMethods.StartStreaming, 0))
+                Error?.Invoke($"Не удалось перезапустить видеопоток после смены частоты кадров (код LuCam: {NativeMethods.LucamGetLastError()})");
+        }
+    }
 
     private static uint PropId(CameraProperty p) => p switch
     {

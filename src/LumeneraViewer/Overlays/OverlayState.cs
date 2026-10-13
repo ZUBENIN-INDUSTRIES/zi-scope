@@ -17,6 +17,12 @@ public sealed record OverlayState
     public ScaleBarCorner Corner { get; init; } = ScaleBarCorner.BottomRight;
     public OverlayColor Color { get; init; } = OverlayColor.White;
     public bool Background { get; init; } = true;
+    /// <summary>Цвета частей плашки; null — от <see cref="Color"/>.</summary>
+    public System.Windows.Media.Color? TextColor { get; init; }
+    public System.Windows.Media.Color? BarColor { get; init; }
+    public System.Windows.Media.Color? BackgroundColor { get; init; }
+    public double BackgroundOpacity { get; init; } = 0.55;
+    public bool Bold { get; init; } = true;
     /// <summary>Размер шрифта при scale = 1.</summary>
     public double FontSize { get; init; } = 16;
     /// <summary>Толщина линии при scale = 1.</summary>
@@ -67,6 +73,11 @@ public sealed record OverlayState
             Corner = sb.Corner,
             Color = sb.Color,
             Background = sb.Background,
+            TextColor = OverlayColors.Parse(sb.TextColor),
+            BarColor = OverlayColors.Parse(sb.BarColor),
+            BackgroundColor = OverlayColors.Parse(sb.BackgroundColor),
+            BackgroundOpacity = Math.Clamp(sb.BackgroundOpacity, 0, 1),
+            Bold = sb.Bold,
             FontSize = sb.FontSize,
             Thickness = sb.Thickness,
             FixedMicrons = sb.FixedMicrons is > 0 ? sb.FixedMicrons : null,

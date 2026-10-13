@@ -39,6 +39,8 @@ internal static class NativeMethods
     [DllImport(Dll)] [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool LucamPropertyRange(nint h, uint prop, out float min, out float max, out float def, out int flags);
     [DllImport(Dll)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool LucamQueryVersion(nint h, out LucamVersion version);
+    /// <summary>Доступные частоты кадров текущего формата; entryCount = 0 и rates = null — только количество.</summary>
+    [DllImport(Dll)] internal static extern int LucamEnumAvailableFrameRates(nint h, uint entryCount, [Out] float[]? rates);
 }
 
 /// <summary>LUCAM_FRAME_FORMAT, 28 байт.</summary>

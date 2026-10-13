@@ -129,7 +129,52 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <ComboBox ItemsSource="{Binding Corners}" SelectedIndex="{Binding CornerIndex}" ToolTip="Угол"/>
-                <ComboBox Grid.Column="2" ItemsSource="{Binding ColorNames}" SelectedIndex="{Binding ColorIndex}" ToolTip="Цвет"/>
+                <ComboBox Grid.Column="2" ItemsSource="{Binding ColorNames}" SelectedIndex="{Binding ColorIndex}"
+                          ToolTip="Общий цвет: сетка, перекрестие, измерения и части плашки, для которых цвет не выбран"/>
+            </Grid>
+
+            <!-- Цвета частей плашки: квадратик цвета + название -->
+            <Grid Style="{StaticResource Row}">
+                <Grid.Resources>
+                    <DataTemplate x:Key="ColorItem">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="14" Height="14" CornerRadius="3" Background="{Binding Brush}" BorderBrush="{StaticResource Zs.Border}"
+                                    BorderThickness="1" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Текст" Style="{StaticResource Label}"/>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding BarColorChoices}" SelectedIndex="{Binding TextColorIndex}"
+                          ItemTemplate="{StaticResource ColorItem}" AutomationProperties.Name="Цвет текста плашки"/>
+                <TextBlock Grid.Row="2" Text="Линейка" Style="{StaticResource Label}"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding BarColorChoices}" SelectedIndex="{Binding BarColorIndex}"
+                          ItemTemplate="{StaticResource ColorItem}" AutomationProperties.Name="Цвет линейки плашки"/>
+                <TextBlock Grid.Row="4" Text="Подложка" Style="{StaticResource Label}"/>
+                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding BarColorChoices}" SelectedIndex="{Binding BackgroundColorIndex}"
+                          ItemTemplate="{StaticResource ColorItem}" IsEnabled="{Binding Background}" AutomationProperties.Name="Цвет подложки плашки"/>
+            </Grid>
+            <Grid Style="{StaticResource Row}" IsEnabled="{Binding Background}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Плотность" Style="{StaticResource Label}" ToolTip="Непрозрачность подложки"/>
+                <Slider Grid.Column="1" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True" TickFrequency="5"
+                        Value="{Binding BackgroundOpacityPercent}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding BackgroundOpacityPercent, StringFormat={}{0}&#x00A0;%}" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
             </Grid>
 
             <Grid Style="{StaticResource Row}">
@@ -138,7 +183,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Шрифт" Style="{StaticResource Label}"/>
+                <TextBlock Text="Шрифт" Style="{StaticResource Label}" ToolTip="Arial; размер — для кадра шириной 1600 px, на больших кадрах пропорционально крупнее"/>
                 <Slider Grid.Column="1" Minimum="10" Maximum="48" SmallChange="1" LargeChange="4" IsSnapToTickEnabled="True" TickFrequency="1"
                         Value="{Binding FontSize}" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="{Binding FontSize}" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
@@ -170,15 +215,12 @@
                 <ComboBox Grid.Column="3" Margin="6,0,0,0" ItemsSource="{Binding UnitNames}" SelectedIndex="{Binding UnitIndex}" ToolTip="Единицы"/>
             </Grid>
 
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <CheckBox Content="Подложка" IsChecked="{Binding Background}" VerticalAlignment="Center"/>
-                <ui:Button Grid.Column="1" Content="Вернуть в угол" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetPositionCommand}"
-                           IsEnabled="{Binding HasCustomPosition}" ToolTip="Плашку можно перетащить мышью; кнопка возвращает её в выбранный угол"/>
-            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <CheckBox Content="Подложка" IsChecked="{Binding Background}" VerticalAlignment="Center" MinWidth="0" Margin="0,0,16,0"/>
+                <CheckBox Content="Жирный" IsChecked="{Binding Bold}" VerticalAlignment="Center" MinWidth="0"/>
+            </StackPanel>
+            <ui:Button Content="Вернуть в угол" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetPositionCommand}" HorizontalAlignment="Left"
+                       IsEnabled="{Binding HasCustomPosition}" ToolTip="Плашку можно перетащить мышью; кнопка возвращает её в выбранный угол"/>
         </StackPanel>
     </StackPanel>
 </UserControl>

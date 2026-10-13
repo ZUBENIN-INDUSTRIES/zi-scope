@@ -119,7 +119,10 @@ public partial class PreviewOverlay : UserControl
 
     private void Redraw() => _surface.InvalidateVisual();
 
+    /// <summary>Экранные направляющие: постоянный размер на экране при любом зуме.</summary>
     private double Scale => _vm is { PreviewZoom: > 0 and var z } ? 1 / z : 1;
+    /// <summary>Плашка и измерения: как в файле.</summary>
+    private double BarScale => OverlayRenderer.PreviewScale(FrameSize);
     private Size FrameSize => _vm is null ? Size.Empty : new Size(_vm.FrameWidth, _vm.FrameHeight);
 
     private OverlayState? CurrentState()
@@ -154,7 +157,7 @@ public partial class PreviewOverlay : UserControl
         }
 
         if (_vm.ActiveTool == PreviewTool.None && CurrentState() is { } s
-            && OverlayRenderer.ScaleBarBounds(s, FrameSize, Scale) is { } box && box.Contains(p))
+            && OverlayRenderer.ScaleBarBounds(s, FrameSize, BarScale) is { } box && box.Contains(p))
         {
             _dragOffset = p - box.TopLeft;
             CaptureMouse();
@@ -193,7 +196,7 @@ public partial class PreviewOverlay : UserControl
             return;
         }
 
-        if (_dragOffset is { } off && CurrentState() is { } s && OverlayRenderer.ScaleBarBounds(s, FrameSize, Scale) is { } box)
+        if (_dragOffset is { } off && CurrentState() is { } s && OverlayRenderer.ScaleBarBounds(s, FrameSize, BarScale) is { } box)
         {
             var f = FrameSize;
             var x = Math.Clamp(p.X - off.X, 0, Math.Max(0, f.Width - box.Width));
@@ -204,7 +207,7 @@ public partial class PreviewOverlay : UserControl
 
         if (_vm.ActiveTool == PreviewTool.None)
         {
-            var over = CurrentState() is { } st && OverlayRenderer.ScaleBarBounds(st, FrameSize, Scale) is { } b && b.Contains(p);
+            var over = CurrentState() is { } st && OverlayRenderer.ScaleBarBounds(st, FrameSize, BarScale) is { } b && b.Contains(p);
             Cursor = over ? Cursors.SizeAll : null;
         }
     }
@@ -236,7 +239,7 @@ public partial class PreviewOverlay : UserControl
         protected override void OnRender(DrawingContext dc)
         {
             if (_owner.CurrentState() is not { } s || _owner.FrameSize is not { Width: > 0, Height: > 0 } size) return;
-            OverlayRenderer.Draw(dc, s, size, _owner.Scale);
+            OverlayRenderer.Draw(dc, s, size, OverlayRenderer.PreviewScale(size), _owner.Scale);
         }
     }
 }

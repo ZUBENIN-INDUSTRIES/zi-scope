@@ -8,8 +8,9 @@ namespace LumeneraViewer.Overlays;
 
 /// <summary>
 /// Единый код рисования оверлеев — и для превью, и для впечатывания в файл.
-/// Рисует в координатах кадра; scale умножает шрифты, толщины и отступы
-/// (превью: 1/зум — размер на экране постоянный; файл: frameWidth/1600).
+/// Рисует в координатах кадра; scale умножает шрифты, толщины и отступы того, что попадает в файл
+/// (плашка, измерения): и в превью, и в файле это frameWidth/1600 — превью показывает кадр таким, каким он
+/// сохранится. Экранные направляющие (сетка, перекрестие, проводимая линия) — в guideScale (в превью 1/зум).
 /// Результат зависит только от (state, frameSize, scale): pixelsPerDip фиксирован = 1.
 /// </summary>
 public static class OverlayRenderer
@@ -21,7 +22,9 @@ public static class OverlayRenderer
     private const double Margin = 16;
     private const double TextGap = 4;
     private const double MeasureFont = 13;
-    private static readonly Typeface Face = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+    private static readonly FontFamily Arial = new("Arial");
+    private static readonly Typeface Face = new(Arial, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    private static readonly Typeface FaceBold = new(Arial, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
     public static Color ColorOf(OverlayColor c) => c switch
     {
@@ -33,27 +36,39 @@ public static class OverlayRenderer
     /// <summary>Подложка: белая для чёрной плашки, иначе чёрная; α 0.55.</summary>
     public static Color BackgroundOf(OverlayColor c) => Palette.WithAlpha(c == OverlayColor.Black ? Colors.White : Colors.Black, BackgroundAlpha);
 
+    /// <summary>Цвета частей плашки: заданные явно или от общего цвета.</summary>
+    public static (Color Text, Color Bar, Color Background) ScaleBarColors(OverlayState s)
+    {
+        var baseColor = ColorOf(s.Color);
+        var bg = s.BackgroundColor ?? (s.Color == OverlayColor.Black ? Colors.White : Colors.Black);
+        return (s.TextColor ?? baseColor, s.BarColor ?? baseColor, Palette.WithAlpha(bg, Math.Clamp(s.BackgroundOpacity, 0, 1)));
+    }
+
     /// <summary>Коэффициент для впечатывания в файл: frameWidth / 1600.</summary>
     public static double ExportScale(int frameWidth) => Math.Max(1, frameWidth) / 1600.0;
 
-    public static void Draw(DrawingContext dc, OverlayState s, Size frameSize, double scale)
+    public static void Draw(DrawingContext dc, OverlayState s, Size frameSize, double scale, double? guideScale = null)
     {
         if (frameSize.Width <= 0 || frameSize.Height <= 0) return;
         if (!(scale > 0) || double.IsInfinity(scale)) scale = 1;
+        var gs = guideScale is > 0 and var g && !double.IsInfinity(g) ? g : scale;
 
         dc.PushClip(new RectangleGeometry(new Rect(frameSize)));
         var color = ColorOf(s.Color);
-        if (s.Grid) DrawGrid(dc, s, frameSize, scale, color);
-        if (s.Crosshair) DrawCrosshair(dc, frameSize, scale, color);
+        if (s.Grid) DrawGrid(dc, s, frameSize, gs, color);
+        if (s.Crosshair) DrawCrosshair(dc, frameSize, gs, color);
         foreach (var m in s.Measurements) DrawMeasurement(dc, m, s, scale, color, dashed: false);
-        if (s.PendingLine is { } p) DrawMeasurement(dc, p, s, scale, Palette.Cyan, dashed: true);
-        if (s.ShowsScaleBar) DrawScaleBar(dc, s, frameSize, scale, color);
+        if (s.PendingLine is { } p) DrawMeasurement(dc, p, s, gs, Palette.Cyan, dashed: true);
+        if (s.ShowsScaleBar) DrawScaleBar(dc, s, frameSize, scale);
         dc.Pop();
     }
 
     /// <summary>Прямоугольник плашки в координатах кадра (для перетаскивания); null — плашка не рисуется.</summary>
     public static Rect? ScaleBarBounds(OverlayState s, Size frameSize, double scale)
         => Layout(s, frameSize, scale, Colors.White) is { } l ? l.Box : null;
+
+    /// <summary>Коэффициент для превью плашки и измерений — тот же, что при записи в файл (что видно, то и сохранится).</summary>
+    public static double PreviewScale(Size frameSize) => ExportScale((int)Math.Round(frameSize.Width));
 
     // ───── Плашка ─────
 
@@ -64,7 +79,7 @@ public static class OverlayRenderer
         if (!s.ShowsScaleBar || frame.Width <= 0 || frame.Height <= 0) return null;
         if (!(scale > 0) || double.IsInfinity(scale)) scale = 1;
         var (microns, barPx, _) = ScaleBarMath.Choose(s.MicronsPerPixel!.Value, (int)frame.Width, 0.2, s.FixedMicrons);
-        var text = Text(ScaleBarMath.FormatLength(microns, s.Unit), Math.Clamp(s.FontSize, 6, 200) * scale, color);
+        var text = Text(ScaleBarMath.FormatLength(microns, s.Unit), Math.Clamp(s.FontSize, 6, 200) * scale, color, s.Bold ? FaceBold : Face);
 
         var pad = Padding * scale;
         var th = Math.Clamp(s.Thickness, 1, 50) * scale;
@@ -94,13 +109,14 @@ public static class OverlayRenderer
         return new BarLayout(box, bar, text, textOrigin);
     }
 
-    private static void DrawScaleBar(DrawingContext dc, OverlayState s, Size frame, double scale, Color color)
+    private static void DrawScaleBar(DrawingContext dc, OverlayState s, Size frame, double scale)
     {
-        if (Layout(s, frame, scale, color) is not { } l) return;
-        if (s.Background)
-            dc.DrawRoundedRectangle(Brush(BackgroundOf(s.Color)), null, l.Box, CornerRadius * scale, CornerRadius * scale);
+        var (text, bar, bg) = ScaleBarColors(s);
+        if (Layout(s, frame, scale, text) is not { } l) return;
+        if (s.Background && bg.A > 0)
+            dc.DrawRoundedRectangle(Brush(bg), null, l.Box, CornerRadius * scale, CornerRadius * scale);
         dc.DrawText(l.Text, l.TextOrigin);
-        dc.DrawRectangle(Brush(color), null, l.Bar);
+        dc.DrawRectangle(Brush(bar), null, l.Bar);
     }
 
     // ───── Измерения ─────
@@ -192,8 +208,8 @@ public static class OverlayRenderer
 
     // ───── Общее ─────
 
-    private static FormattedText Text(string s, double size, Color color)
-        => new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, Math.Max(1, size), Brush(color), 1.0);
+    private static FormattedText Text(string s, double size, Color color, Typeface? face = null)
+        => new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, face ?? Face, Math.Max(1, size), Brush(color), 1.0);
 
     private static SolidColorBrush Brush(Color c) => Palette.Frozen(c);
 }

@@ -76,6 +76,13 @@ public sealed class ScaleBarSettings
     public ScaleBarCorner Corner { get; set; }
     public OverlayColor Color { get; set; }
     public bool Background { get; set; } = true;
+    /// <summary>Цвета частей плашки, «#RRGGBB»; null — от общего цвета <see cref="Color"/> (текст и линейка — он, подложка — контрастная).</summary>
+    public string? TextColor { get; set; }
+    public string? BarColor { get; set; }
+    public string? BackgroundColor { get; set; }
+    /// <summary>Непрозрачность подложки 0..1.</summary>
+    public double BackgroundOpacity { get; set; } = 0.55;
+    public bool Bold { get; set; } = true;
     public double FontSize { get; set; } = 16;
     public double Thickness { get; set; } = 4;
     public double? FixedMicrons { get; set; }

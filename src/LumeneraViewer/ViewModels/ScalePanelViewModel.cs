@@ -240,6 +240,38 @@ public partial class ScalePanelViewModel : ObservableObject
     }
 
     public int ColorIndex { get => (int)Bar.Color; set => Set(() => Bar.Color = (OverlayColor)Math.Clamp(value, 0, 2)); }
+
+    /// <summary>Цвета для текста, линейки и подложки плашки.</summary>
+    public IReadOnlyList<OverlayColors.Named> BarColorChoices => OverlayColors.All;
+
+    private (System.Windows.Media.Color Text, System.Windows.Media.Color Bar, System.Windows.Media.Color Bg) EffectiveBarColors()
+    {
+        var c = OverlayRenderer.ScaleBarColors(OverlayState.FromSettings(Host.Settings));
+        return (c.Text, c.Bar, System.Windows.Media.Color.FromRgb(c.Background.R, c.Background.G, c.Background.B));
+    }
+
+    public int TextColorIndex
+    {
+        get => OverlayColors.IndexOf(EffectiveBarColors().Text);
+        set { if (value >= 0 && value < OverlayColors.All.Count) Set(() => Bar.TextColor = OverlayColors.All[value].Hex); }
+    }
+    public int BarColorIndex
+    {
+        get => OverlayColors.IndexOf(EffectiveBarColors().Bar);
+        set { if (value >= 0 && value < OverlayColors.All.Count) Set(() => Bar.BarColor = OverlayColors.All[value].Hex); }
+    }
+    public int BackgroundColorIndex
+    {
+        get => OverlayColors.IndexOf(EffectiveBarColors().Bg);
+        set { if (value >= 0 && value < OverlayColors.All.Count) Set(() => Bar.BackgroundColor = OverlayColors.All[value].Hex); }
+    }
+    /// <summary>Непрозрачность подложки, %.</summary>
+    public double BackgroundOpacityPercent
+    {
+        get => Math.Round(Math.Clamp(Bar.BackgroundOpacity, 0, 1) * 100);
+        set => Set(() => Bar.BackgroundOpacity = Math.Clamp(Math.Round(value) / 100.0, 0, 1));
+    }
+    public bool Bold { get => Bar.Bold; set => Set(() => Bar.Bold = value); }
     public bool Background { get => Bar.Background; set => Set(() => Bar.Background = value); }
     public double FontSize { get => Bar.FontSize; set => Set(() => Bar.FontSize = Math.Round(Math.Clamp(value, 10, 48))); }
     public double Thickness { get => Bar.Thickness; set => Set(() => Bar.Thickness = Math.Round(Math.Clamp(value, 2, 12))); }
@@ -316,6 +348,9 @@ public partial class ScalePanelViewModel : ObservableObject
         OnPropertyChanged(nameof(AutoLength));
         OnPropertyChanged(nameof(IsManualLength));
         OnPropertyChanged(nameof(HasCustomPosition));
+        OnPropertyChanged(nameof(TextColorIndex));
+        OnPropertyChanged(nameof(BarColorIndex));
+        OnPropertyChanged(nameof(BackgroundColorIndex));
         RaiseChanged();
     }
 
