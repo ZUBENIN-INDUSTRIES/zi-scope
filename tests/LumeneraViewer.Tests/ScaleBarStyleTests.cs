@@ -91,3 +91,26 @@ public class ScaleBarStyleTests
         Assert.True(px[2] > 200 && px[1] < 40 && px[0] < 40, $"BGRA = {px[0]},{px[1]},{px[2]},{px[3]}");
     }
 }
+
+public class MicronsPerPixelInputTests
+{
+    [Theory]
+    [InlineData("0,25", 0.25)]
+    [InlineData(" 0.5 ", 0.5)]
+    [InlineData("1000", 1000)]
+    [InlineData("0.0001", 0.0001)]
+    public void Accepts(string text, double expected)
+    {
+        Assert.True(LumeneraViewer.ViewModels.ScalePanelViewModel.TryParseMicronsPerPixel(text, out var k));
+        Assert.Equal(expected, k, 9);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("1001")]
+    [InlineData("0.00005")]
+    [InlineData("мкм")]
+    public void Rejects(string text) => Assert.False(LumeneraViewer.ViewModels.ScalePanelViewModel.TryParseMicronsPerPixel(text, out _));
+}

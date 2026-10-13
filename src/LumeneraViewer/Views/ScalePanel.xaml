@@ -67,6 +67,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Калибровка" Style="{StaticResource MutedText}" FontSize="11.5"/>
@@ -102,6 +103,10 @@
                            Content="Калибровать по снимку…" Appearance="Secondary" Icon="{ui:SymbolIcon ImageSearch24}"
                            Command="{Binding CalibrateFromImageCommand}"
                            ToolTip="Выбрать снимок с этой камеры с нанесённой масштабной линией — линия и число найдутся сами"/>
+                <ui:Button Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                           Content="Ввести мкм/px…" Appearance="Secondary" Icon="{ui:SymbolIcon NumberSymbol24}"
+                           Command="{Binding EnterMicronsPerPixelCommand}" AutomationProperties.Name="Ввести мкм/px"
+                           ToolTip="Задать размер пикселя числом, если он уже известен (из паспорта объектива или другой программы)"/>
             </Grid>
         </Border>
 

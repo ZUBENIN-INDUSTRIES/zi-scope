@@ -111,6 +111,29 @@ public partial class ScalePanelViewModel : ObservableObject
         return saved;
     }
 
+    // ───── Калибровка вводом числа ─────
+
+    /// <summary>Разумный размер пикселя: от 0,0001 до 1000 мкм/px (запятая или точка).</summary>
+    internal static bool TryParseMicronsPerPixel(string? s, out double k)
+        => TryParse(s, out k) && k >= 0.0001 && k <= 1000;
+
+    /// <summary>Ввести мкм/px для текущего увеличения вручную (если значение известно из паспорта или другой программы).</summary>
+    [RelayCommand]
+    private async Task EnterMicronsPerPixel()
+    {
+        var mag = Host.CurrentMagnification;   // фиксируем до диалога: увеличение могут сменить, пока он открыт
+        var initial = MicronsPerPixel is { } k ? FormatMpp(k) : "";
+        var text = await AskTextAsync($"Размер пикселя для ×{mag}",
+            "Сколько микрометров в одном пикселе кадра (мкм/px), например 0,25:", initial, "Сохранить");
+        if (text is null) return;
+        if (!TryParseMicronsPerPixel(text, out var v))
+        {
+            Host.Notify("Размер пикселя не сохранён", $"«{text.Trim()}» — нужно число от 0,0001 до 1000 мкм/px.", NotifyKind.Warning);
+            return;
+        }
+        SaveCalibration(mag, v);
+    }
+
     // ───── Калибровка по снимку и таблица размера пикселя (G02–G05) ─────
 
     [RelayCommand]
