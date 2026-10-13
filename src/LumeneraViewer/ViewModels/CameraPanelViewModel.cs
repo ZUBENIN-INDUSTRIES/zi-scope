@@ -118,6 +118,7 @@ public partial class CameraPanelViewModel : ObservableObject
             IsSimulated = cam is SimulatedCamera;
             if (cam is SimulatedCamera sim) _demoFocus = sim.Focus;
             OnPropertyChanged(nameof(DemoFocus));
+            OnPropertyChanged(nameof(DemoResolutionIndex));
 
             var er = cam?.GetRange(CameraProperty.Exposure);
             ExposureAvailable = er is not null;
@@ -355,6 +356,39 @@ public partial class CameraPanelViewModel : ObservableObject
         {
             if (!SetProperty(ref _demoFocus, Math.Clamp(value, 0, 1))) return;
             if (Host.Camera is SimulatedCamera sim) sim.Focus = (float)_demoFocus;
+        }
+    }
+
+    // ───── Разрешение демо-камеры ─────
+
+    public sealed record DemoResolution(int Width, int Height, string Name);
+
+    /// <summary>Варианты: обычный, как INFINITY4-11 с биннингом 2×2 и в полном кадре.</summary>
+    public IReadOnlyList<DemoResolution> DemoResolutions { get; } = new DemoResolution[]
+    {
+        new(1280, 960, "1280 × 960"),
+        new(1920, 1440, "1920 × 1440"),
+        new(2004, 1336, "2004 × 1336 · биннинг"),
+        new(4008, 2672, "4008 × 2672 · полный"),
+    };
+
+    /// <summary>Выбранное разрешение демо; смена перезапускает демо-камеру с новым размером кадра.</summary>
+    public int DemoResolutionIndex
+    {
+        get
+        {
+            var c = Host.Settings.Camera;
+            return DemoResolutions.ToList().FindIndex(r => r.Width == c.DemoWidth && r.Height == c.DemoHeight);
+        }
+        set
+        {
+            if (value < 0 || value >= DemoResolutions.Count || value == DemoResolutionIndex) return;
+            var r = DemoResolutions[value];
+            Host.Settings.Camera.DemoWidth = r.Width;
+            Host.Settings.Camera.DemoHeight = r.Height;
+            Host.SaveSettingsSoon();
+            OnPropertyChanged();
+            if (Host.Camera is SimulatedCamera) Host.StartDemo();
         }
     }
 

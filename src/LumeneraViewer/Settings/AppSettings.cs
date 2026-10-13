@@ -58,6 +58,9 @@ public sealed class CameraSettings
     public bool SwapRedBlue { get; set; }
     public int DemosaicMethod { get; set; } = 2;
     public bool PreferDemo { get; set; }
+    /// <summary>Разрешение демо-камеры.</summary>
+    public int DemoWidth { get; set; } = 1920;
+    public int DemoHeight { get; set; } = 1440;
 }
 
 public sealed record AdjustmentPreset(string Name, ImageAdjustments Adjustments, float? ExposureMs, float? Gain);

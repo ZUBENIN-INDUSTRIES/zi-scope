@@ -3,17 +3,36 @@ using System.Diagnostics;
 namespace LumeneraViewer.Camera;
 
 /// <summary>
-/// Демо-камера: «микропрепарат» 1920×1440, ~25 к/с. Сцена рендерится один раз,
+/// Демо-камера: «микропрепарат» (по умолчанию 1920×1440), ~25 к/с. Сцена рендерится один раз,
 /// на кадр — только сдвиг (дрейф), размытие по фокусу, яркость (экспозиция·усиление) и шум.
+/// Размеры клеток, дрейф и размытие растут вместе с разрешением — картинка выглядит одинаково при любом размере.
 /// </summary>
 public sealed class SimulatedCamera : ICamera
 {
-    private const int W = 1920, H = 1440;
-    private const int Margin = 48;                       // запас сцены под дрейф
-    private const int SW = W + 2 * Margin, SH = H + 2 * Margin;
+    public const int DefaultWidth = 1920, DefaultHeight = 1440;
+    public const int MinSide = 320, MaxSide = 8000;
+
+    private readonly int W, H;
+    private readonly float K;                            // масштаб относительно 1920 по ширине
+    private readonly int Margin;                         // запас сцены под дрейф
+    private readonly int SW, SH;
     private const int FramePeriodMs = 40;
     private const float NominalExposure = 30f;
-    private const int MaxBlurRadius = 14;
+    private readonly int MaxBlurRadius;
+
+    public SimulatedCamera() : this(DefaultWidth, DefaultHeight) { }
+
+    /// <summary>Демо-камера заданного разрешения (стороны зажимаются в <see cref="MinSide"/>…<see cref="MaxSide"/>).</summary>
+    public SimulatedCamera(int width, int height)
+    {
+        W = Math.Clamp(width, MinSide, MaxSide);
+        H = Math.Clamp(height, MinSide, MaxSide);
+        K = W / (float)DefaultWidth;
+        Margin = Math.Max(8, (int)Math.Round(48 * K));
+        SW = W + 2 * Margin;
+        SH = H + 2 * Margin;
+        MaxBlurRadius = Math.Max(2, (int)Math.Round(14 * K));
+    }
 
     private static readonly CameraProperty[] Supported = { CameraProperty.Exposure, CameraProperty.Gain };
     private static readonly PropertyRange ExposureRange = new(0.1f, 2000f, 30f);
@@ -170,7 +189,7 @@ public sealed class SimulatedCamera : ICamera
     }
 
     // Box-размытие по строкам окна W×H сцены, начиная с (ox, oy); соседи берутся из запаса сцены
-    private static void BlurHorizontal(byte[] scene, byte[] dst, int ox, int oy, int r)
+    private void BlurHorizontal(byte[] scene, byte[] dst, int ox, int oy, int r)
     {
         int div = 2 * r + 1;
         Parallel.For(0, H, y =>
@@ -192,7 +211,7 @@ public sealed class SimulatedCamera : ICamera
     }
 
     // Box-размытие по столбцам полосами по 64 px (бережно к кэшу)
-    private static void BlurVertical(byte[] src, byte[] dst, int r)
+    private void BlurVertical(byte[] src, byte[] dst, int r)
     {
         const int Band = 64 * 3;
         int stride = W * 3, div = 2 * r + 1;
@@ -221,7 +240,7 @@ public sealed class SimulatedCamera : ICamera
     }
 
     // Сцена светлого поля: фон с виньеткой и пятнами + 40–80 окрашенных клеток (пропускание перемножается)
-    private static byte[] RenderScene()
+    private byte[] RenderScene()
     {
         var rnd = new Random(20261007);
         // Пропускание по каналам R, G, B
@@ -241,8 +260,8 @@ public sealed class SimulatedCamera : ICamera
         int count = rnd.Next(40, 81);
         for (int n = 0; n < count; n++)
         {
-            float cx = rnd.Next(SW), cy = rnd.Next(SH);
-            float a = 25 + (float)rnd.NextDouble() * 45;
+            float cx = (float)(rnd.NextDouble() * SW), cy = (float)(rnd.NextDouble() * SH);
+            float a = (25 + (float)rnd.NextDouble() * 45) * K;
             float bAxis = a * (0.6f + (float)rnd.NextDouble() * 0.4f);
             float ang = (float)(rnd.NextDouble() * Math.PI);
             float cos = MathF.Cos(ang), sin = MathF.Sin(ang);
@@ -252,8 +271,8 @@ public sealed class SimulatedCamera : ICamera
             float nu = ((float)rnd.NextDouble() - 0.5f) * 0.4f * a, nv = ((float)rnd.NextDouble() - 0.5f) * 0.4f * bAxis;
             float na = a * (0.28f + (float)rnd.NextDouble() * 0.12f), nb = na * (0.75f + (float)rnd.NextDouble() * 0.25f);
 
-            int x0 = Math.Max(0, (int)(cx - a - 4)), x1 = Math.Min(SW - 1, (int)(cx + a + 4));
-            int y0 = Math.Max(0, (int)(cy - a - 4)), y1 = Math.Min(SH - 1, (int)(cy + a + 4));
+            int x0 = Math.Max(0, (int)(cx - a - 4 * K)), x1 = Math.Min(SW - 1, (int)(cx + a + 4 * K));
+            int y0 = Math.Max(0, (int)(cy - a - 4 * K)), y1 = Math.Min(SH - 1, (int)(cy + a + 4 * K));
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
                 {
@@ -280,7 +299,7 @@ public sealed class SimulatedCamera : ICamera
             {
                 float dx = x - hx, dy = y - hy;
                 float vignette = 1 - 0.35f * (dx * dx + dy * dy) / maxR2;
-                float mottle = 1 + 0.025f * MathF.Sin(x * 0.011f + MathF.Sin(y * 0.007f) * 2) * MathF.Cos(y * 0.013f);
+                float mottle = 1 + 0.025f * MathF.Sin(x * 0.011f / K + MathF.Sin(y * 0.007f / K) * 2) * MathF.Cos(y * 0.013f / K);
                 float light = 0.85f * vignette * mottle;
                 int i = y * SW + x, p = i * 3;
                 scene[p] = ToByte(light * 0.93f * tb[i]);

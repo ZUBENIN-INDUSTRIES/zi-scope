@@ -426,7 +426,8 @@ public partial class MainViewModel : ObservableObject
             _installing = false;
             await CloseCameraAsync();
             State = ConnectionState.Connecting;
-            var cam = CameraFactory.CreateSimulated();
+            var cs = Settings.Camera ?? new CameraSettings();
+            var cam = CameraFactory.CreateSimulated(cs.DemoWidth, cs.DemoHeight);
             var sub = Subscribe(cam);
             try { await Task.Run(cam.Start); }
             catch

@@ -24,4 +24,5 @@ public static class CameraFactory
     public static ICamera CreateReal(CameraSettings s) => new LuCamCamera(s);
 
     public static ICamera CreateSimulated() => new SimulatedCamera();
+    public static ICamera CreateSimulated(int width, int height) => new SimulatedCamera(width, height);
 }

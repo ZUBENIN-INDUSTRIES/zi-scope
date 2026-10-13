@@ -109,6 +109,17 @@
         <c:LevelBar Height="8" Margin="0,0,0,4" Value="{Binding SharpnessLevel}" Marker="{Binding SharpnessMarker}"
                     ToolTip="Полоса — текущая резкость; светлая отметка — максимум за сессию"/>
 
+        <Grid Margin="0,12,0,0" Visibility="{Binding IsSimulated, Converter={StaticResource BoolToVis}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Разрешение (демо)" Style="{StaticResource SectionLabel}" FontWeight="Normal" Margin="0,0,10,0"/>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding DemoResolutions}" DisplayMemberPath="Name"
+                      SelectedIndex="{Binding DemoResolutionIndex}" AutomationProperties.Name="Разрешение демо"
+                      ToolTip="Размер кадра симулятора; 2004 × 1336 и 4008 × 2672 — как у INFINITY 4 с биннингом 2×2 и в полном кадре. При смене демо-камера перезапускается"/>
+        </Grid>
+
         <c:LabeledSlider Margin="0,10,0,0" Label="Фокус (демо)" Value="{Binding DemoFocus}"
                          Minimum="0" Maximum="1" DefaultValue="0.5" Step="0.01" Format="0.00"
                          Visibility="{Binding IsSimulated, Converter={StaticResource BoolToVis}}"/>
