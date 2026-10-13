@@ -181,6 +181,29 @@ public sealed class SeriesStoreTests : IDisposable
     }
 
     [Fact]
+    public void LoadSave_HandEditedProject_FrameStaysUnderItsOwnFile()
+    {
+        var s = New();
+        var a = Touch("a1.png", "a2.png");
+        s.MarkDone(A, a, Metas(a));
+        SeriesStore.Save(s);
+
+        // Проект поправили вручную: у шага из двух файлов осталась одна запись — для второго файла.
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ProjectPath))!;
+        var list = json["Frames"]!.AsArray();
+        list.Remove(list.Single(f => f!["File"]!.GetValue<string>() == "a1.png"));
+        File.WriteAllText(ProjectPath, json.ToJsonString());
+
+        SeriesStore.Save(SeriesStore.Load(ProjectPath));
+
+        var frames = ReadJson().GetProperty("Frames").EnumerateArray().ToArray();
+        Assert.Single(frames);
+        Assert.Equal("a2.png", frames[0].GetProperty("File").GetString());
+        Assert.Equal("2", frames[0].GetProperty("Extra").GetProperty("Kind").GetString());
+        Assert.True(frames[0].GetProperty("OverlaysBurned").GetBoolean());
+    }
+
+    [Fact]
     public void Load_BrokenFile_InvalidData()
     {
         Directory.CreateDirectory(_dir);

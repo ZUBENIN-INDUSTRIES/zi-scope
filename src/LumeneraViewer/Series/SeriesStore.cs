@@ -63,10 +63,14 @@ public static class SeriesStore
             .Select(r => new StepDto(r.Key.Group, r.Key.Sample, r.Key.Magnification, r.Value.Status,
                 r.Value.Files.Select(f => ToStored(s.Folder, f)).ToList(), r.Value.When))
             .ToList();
-        // Метаданные — по записи на файл снятого шага; имя в записи — то же, что в списке файлов шага.
+        // Метаданные — по записи на файл снятого шага. Запись находится по имени файла, не по позиции: у шага из
+        // правленого вручную проекта записей может быть меньше, чем файлов, и чужое имя запись получать не должна.
         var frames = done
             .Where(r => r.Value.Status == StepStatus.Done && r.Value.Frames is not null)
-            .SelectMany(r => r.Value.Files.Zip(r.Value.Frames!, (f, m) => m with { File = ToStored(s.Folder, f) }))
+            .SelectMany(r => r.Value.Files.SelectMany(f => r.Value.Frames!
+                .Where(m => string.Equals(m.File, Path.GetFileName(f), StringComparison.OrdinalIgnoreCase))
+                .Take(1)
+                .Select(m => m with { File = ToStored(s.Folder, f) })))
             .ToList();
         var dto = new FileDto(Format, s.Plan, ToDto(s.Current), s.Reshooting, s.ExtraSteps.Select(ToDto).ToList(), steps, frames);
 
