@@ -12,12 +12,13 @@ using Wpf.Ui.Controls;
 namespace LumeneraViewer.Views;
 
 /// <summary>
-/// Окно «Калибровка по снимку»: картинка вписана в окно, поверх — линия с маркерами на концах
-/// (перетаскиваются) и рамка области подписи. Координаты холста = пиксели картинки.
+/// Окно «Калибровка по снимку»: картинка с зумом и сдвигом (ZoomPanHost), поверх — линия с маркерами на концах
+/// (перетаскиваются левой кнопкой) и рамка области подписи. Координаты холста = пиксели картинки.
 /// </summary>
 public partial class CalibrationFromImageWindow : FluentWindow
 {
-    private const double GrabRadius = 14;   // экранные пиксели
+    private const double GrabRadius = 9;    // экранные пиксели
+    private const double MarkerSize = 9;    // диаметр кольца маркера, экранные пиксели
 
     private readonly CalibrationFromImageViewModel _vm;
     private int _dragging;   // 0 — нет, 1 — A, 2 — B
@@ -33,6 +34,8 @@ public partial class CalibrationFromImageWindow : FluentWindow
         vm.PropertyChanged += OnVmChanged;
         vm.CloseRequested += saved => DialogResult = saved;
         Fit.SizeChanged += (_, _) => Redraw();
+        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(UI.Controls.ZoomPanHost.ZoomProperty, typeof(UI.Controls.ZoomPanHost))
+            .AddValueChanged(Fit, (_, _) => { ZoomText.Text = $"{Fit.Zoom * 100:0} %"; Redraw(); });
         Loaded += async (_, _) => { Redraw(); await vm.AnalyzeAsync(); ValueBox.Focus(); };
     }
 
@@ -65,14 +68,10 @@ public partial class CalibrationFromImageWindow : FluentWindow
     }
 
     /// <summary>Пикселей картинки на экранный пиксель (толщины и маркеры не зависят от зума).</summary>
-    private double Unit
-    {
-        get
-        {
-            var shown = Fit.ActualWidth;
-            return shown > 0 && Surface.ActualWidth > 0 ? Math.Max(Surface.ActualWidth / shown, Surface.ActualHeight / Math.Max(1, Fit.ActualHeight)) : 1;
-        }
-    }
+    private double Unit => Fit.Zoom > 0 ? 1 / Fit.Zoom : 1;
+
+    private void Fit_Click(object sender, RoutedEventArgs e) => Fit.FitToView();
+    private void Actual_Click(object sender, RoutedEventArgs e) => Fit.ActualPixels();
 
     private void Redraw()
     {
@@ -86,21 +85,23 @@ public partial class CalibrationFromImageWindow : FluentWindow
             }, r.X, r.Y);
         if (_vm.A is { } a && _vm.B is { } b)
         {
-            Marks.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = Brushes.Black, StrokeThickness = 6 * u, Opacity = 0.55, IsHitTestVisible = false });
-            Marks.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = new SolidColorBrush(Palette.Cyan), StrokeThickness = 2 * u, IsHitTestVisible = false });
+            Marks.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = Brushes.Black, StrokeThickness = 3.5 * u, Opacity = 0.5, IsHitTestVisible = false });
+            Marks.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = new SolidColorBrush(Palette.Cyan), StrokeThickness = 1.5 * u, IsHitTestVisible = false });
         }
         if (_vm.A is { } pa) Marker(pa, u);
         if (_vm.B is { } pb) Marker(pb, u);
     }
 
+    /// <summary>Маркер конца: тонкое кольцо с прозрачной серединой (сама точка видна) и точка в центре.</summary>
     private void Marker(Point p, double u)
     {
-        var d = 14 * u;
-        Add(new Ellipse
-        {
-            Width = d, Height = d, Fill = Palette.AccentBrush, Stroke = Brushes.Black, StrokeThickness = 1.5 * u, Opacity = 0.9,
-            IsHitTestVisible = false,
-        }, p.X - d / 2, p.Y - d / 2);
+        var d = MarkerSize * u;
+        Add(new Ellipse { Width = d + 2 * u, Height = d + 2 * u, Stroke = Brushes.Black, StrokeThickness = 1 * u, Opacity = 0.6, IsHitTestVisible = false },
+            p.X - d / 2 - u, p.Y - d / 2 - u);
+        Add(new Ellipse { Width = d, Height = d, Stroke = Palette.AccentBrush, StrokeThickness = 1.5 * u, IsHitTestVisible = false },
+            p.X - d / 2, p.Y - d / 2);
+        var dot = 2 * u;
+        Add(new Ellipse { Width = dot, Height = dot, Fill = Palette.AccentBrush, IsHitTestVisible = false }, p.X - dot / 2, p.Y - dot / 2);
     }
 
     private void Add(UIElement e, double x, double y)
