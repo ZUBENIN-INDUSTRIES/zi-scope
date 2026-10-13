@@ -9,9 +9,9 @@ public enum LineColor { Blue, Yellow, White, Black, Red }
 
 /// <summary>
 /// Найденная масштабная линия. Координаты — пиксели картинки; A — левый конец, B — правый (на одной высоте),
-/// LengthPx = B.X − A.X. TextRegionAbove — где искать подпись (обрезано по картинке).
+/// LengthPx = B.X − A.X. TextRegionAbove / TextRegionBelow — где искать подпись: над линией и под ней (обрезано по картинке).
 /// </summary>
-public sealed record DetectedLine(Point A, Point B, double LengthPx, LineColor Color, Rect TextRegionAbove);
+public sealed record DetectedLine(Point A, Point B, double LengthPx, LineColor Color, Rect TextRegionAbove, Rect TextRegionBelow);
 
 /// <summary>
 /// Поиск масштабной линии на снимке: самый длинный горизонтальный отрезок сплошного цвета
@@ -85,10 +85,10 @@ public static class ScaleLineDetector
             }
         }
 
-        return best is null ? null : ToResult(best, width);
+        return best is null ? null : ToResult(best, width, height);
     }
 
-    private static DetectedLine ToResult(Bar b, int width)
+    private static DetectedLine ToResult(Bar b, int width, int height)
     {
         // Центр толщины, концы — по самым длинным строкам (края сглаживания короче).
         var y = b.Top + (b.Bottom - b.Top) / 2.0 + 0.5;
@@ -99,7 +99,9 @@ public static class ScaleLineDetector
         var top = Math.Max(0, b.Top - textH);
         var left = Math.Max(0, a.X - len * 0.25);
         var right = Math.Min(width, e.X + len * 0.25);
-        return new DetectedLine(a, e, len, b.Color, new Rect(left, top, right - left, b.Top - top));
+        var bottom = Math.Min(height, b.Bottom + 1 + textH);
+        var below = new Rect(left, b.Bottom + 1, right - left, Math.Max(0, bottom - (b.Bottom + 1)));
+        return new DetectedLine(a, e, len, b.Color, new Rect(left, top, right - left, b.Top - top), below);
     }
 
     /// <summary>Код цвета каждого пикселя: 0 — ни один, иначе LineColor + 1.</summary>

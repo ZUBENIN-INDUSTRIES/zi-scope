@@ -70,7 +70,7 @@ publish.ps1     сборка папки для переноса
 - Экспорт: `CapturePanel` берёт `LatestProcessedFrame` + `BuildOverlayState()` в UI-потоке → `FrameExporter.SaveAsync` → `StaWorker` пишет файл, `_clean`-копию и `.json`. Серия — `SaveExactAsync` (ровно заданный путь, без `_2`/`_clean`, доп. поля в `"Extra"` .json).
 - Главный снимок (Пробел и кнопка) — `host.PrimaryCaptureCommand`: при `SeriesPanel.IsActive` снимает шаг серии, иначе `CapturePanel.CaptureCommand`.
 - Серия: `SeriesRunner(SeriesSession, ISeriesEnvironment)` ведёт шаги; состояние — `series.zscope-series.json` в папке серии (`SeriesStore`); при активной серии внизу показывается `SeriesMap`.
-- Калибровка по снимку: `ScaleLineDetector` ищет линию (5 цветов) → `ScaleTextRecognizer` читает подпись офлайн-OCR → `ScaleTextParser` → `ScalePanel.SaveCalibration(mag, k)`; таблица мкм/px — `PixelSizeTable`.
+- Калибровка по снимку: `ScaleLineDetector` ищет линию (5 цветов) → `ScaleTextRecognizer` читает подпись офлайн-OCR (сначала над линией, потом под ней: `TextRegionAbove/TextRegionBelow`) → `ScaleTextParser` → `ScalePanel.SaveCalibration(mag, k)`; таблица мкм/px — `PixelSizeTable`.
 - Драйверы: `DriverStartupFlow.EnsureDriversAsync` при старте; установщик ищется в `<папка exe>\Drivers\`.
 - Camera/Imaging/Overlays/Export/Series/Settings не знают хост; WPF-типы — в Overlays/Export/Calibration (DrawingContext, энкодеры, BitmapSource); хост знают только ViewModels/Views/UI/Drivers.
 

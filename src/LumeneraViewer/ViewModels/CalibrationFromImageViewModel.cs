@@ -214,6 +214,8 @@ public partial class CalibrationFromImageViewModel : ObservableObject
             if (!ocr.OcrAvailable) OcrText = ScaleTextRecognizer.UnavailableMessage;
             else if (ocr.Reading is { } r)
             {
+                // Рамка — там, где число нашлось (над линией или под ней), если линию не правили вручную.
+                if (!_lineEdited && ocr.Region is { } where) TextRegion = where;
                 // Показываем прочтение («100 µm»), а не сырой OCR («100 pm») — он только в подсказке.
                 OcrRawText = $"Текст OCR: «{ocr.RawText.Trim()}»";
                 if (_valueEdited)

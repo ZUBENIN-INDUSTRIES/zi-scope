@@ -97,6 +97,41 @@ public sealed class ScaleLineDetectorTests
     }
 
     [Theory]
+    [InlineData(LineColor.Yellow, false)]
+    [InlineData(LineColor.Blue, true)]
+    [InlineData(LineColor.Black, true)]
+    public void Detect_LabelBelowLine_RegionBelowCoversIt(LineColor color, bool light)
+    {
+        // Подпись под линией (линия у верха кадра): линия находится, нижняя область захватывает подпись.
+        var px = Background(light, 11);
+        const int x0 = 200, y0 = 60, th = 4;
+        Fill(px, x0, y0, 300, th, Colors[color], 98);
+        Label(px, x0 + 100, y0 + th + 8 + 22, Colors[color]);   // штрихи от y0+th+8 до y0+th+30
+
+        var d = ScaleLineDetector.Detect(px, W, H);
+
+        Assert.NotNull(d);
+        Assert.Equal(color, d!.Color);
+        Assert.InRange(d.LengthPx, 299, 301);
+        Assert.True(d.TextRegionBelow.Top >= y0 + th - 1 && d.TextRegionBelow.Top <= y0 + th + 1);
+        Assert.True(d.TextRegionBelow.Bottom >= y0 + th + 30);
+        Assert.True(d.TextRegionBelow.Left <= x0 + 100 && d.TextRegionBelow.Right >= x0 + 190);
+        // верхняя область упирается в край кадра и не залезает под линию
+        Assert.True(d.TextRegionAbove.Top >= 0 && d.TextRegionAbove.Bottom <= y0 + 1);
+    }
+
+    [Fact]
+    public void Detect_LineAtBottomEdge_RegionBelowClippedToImage()
+    {
+        var px = Background(true, 12);
+        Fill(px, 150, H - 12, 300, 4, Colors[LineColor.Red], 97);   // 8 px до края, нижняя область (≥ 40 px) обрезается
+        var d = ScaleLineDetector.Detect(px, W, H);
+        Assert.NotNull(d);
+        Assert.True(d!.TextRegionBelow.Bottom <= H);
+        Assert.True(d.TextRegionBelow.Height >= 0);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void Detect_NoLine_ReturnsNull(bool light)

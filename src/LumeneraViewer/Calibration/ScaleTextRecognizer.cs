@@ -6,7 +6,8 @@ using Windows.Security.Cryptography;
 namespace LumeneraViewer.ImageCalibration;
 
 /// <summary>Итог распознавания подписи: значение (или null), сырой текст OCR и было ли распознавание вообще доступно.</summary>
-public sealed record ScaleTextResult(ScaleReading? Reading, string RawText, bool OcrAvailable);
+/// <summary>Region — где прочитано число (над линией или под ней); null — не прочитано.</summary>
+public sealed record ScaleTextResult(ScaleReading? Reading, string RawText, bool OcrAvailable, Rect? Region = null);
 
 /// <summary>
 /// Распознавание подписи над масштабной линией встроенным OCR Windows (<c>Windows.Media.Ocr</c>, офлайн).
@@ -53,8 +54,16 @@ public static class ScaleTextRecognizer
     }
 
     /// <summary>Распознать число над линией. Пиксели BGR24 картинки целиком; работа идёт в фоновом потоке.</summary>
-    public static Task<ScaleTextResult> RecognizeAsync(byte[] bgr, int width, int height, DetectedLine line)
-        => RecognizeAsync(bgr, width, height, line.TextRegionAbove, line.Color);
+    /// <summary>Подпись бывает над линией или под ней: сначала читаем сверху, не нашли число — снизу.</summary>
+    public static async Task<ScaleTextResult> RecognizeAsync(byte[] bgr, int width, int height, DetectedLine line)
+    {
+        var above = await RecognizeAsync(bgr, width, height, line.TextRegionAbove, line.Color);
+        if (above.Reading is not null || !above.OcrAvailable) return above;
+        var below = await RecognizeAsync(bgr, width, height, line.TextRegionBelow, line.Color);
+        if (below.Reading is not null) return below;
+        var raw = string.Join(" | ", new[] { above.RawText, below.RawText }.Where(t => t.Length > 0));
+        return new ScaleTextResult(null, raw, true);
+    }
 
     /// <summary>Распознать число в области region (пиксели картинки); color — цвет подписи для бинаризации.</summary>
     public static Task<ScaleTextResult> RecognizeAsync(byte[] bgr, int width, int height, Rect region, LineColor? color) => Task.Run(async () =>
@@ -74,7 +83,7 @@ public static class ScaleTextRecognizer
             var res = await engine.RecognizeAsync(bmp);
             var text = res.Text ?? "";
             if (text.Length > 0 && !texts.Contains(text)) texts.Add(text);
-            if (ScaleTextParser.Parse(text) is { } reading) return new ScaleTextResult(reading, text, true);
+            if (ScaleTextParser.Parse(text) is { } reading) return new ScaleTextResult(reading, text, true, r);
         }
         return new ScaleTextResult(null, string.Join(" | ", texts), true);
     });
