@@ -13,7 +13,7 @@ WPF-программа (.NET 8, x64; exe — `ZI-scope.exe`, пространс�
 | `dotnet test LumeneraViewer.sln` | Все тесты (xUnit: все зелёные, 1 пропущен — замер скорости) |
 | `dotnet test LumeneraViewer.sln --filter "FullyQualifiedName~ScaleBarMathTests"` | Один класс тестов |
 | `$env:LV_PERF=1; dotnet test LumeneraViewer.sln -c Release --filter "Category=Perf"` | Замер скорости `ImageProcessor` с глубоким цветом (PowerShell) |
-| `powershell -ExecutionPolicy Bypass -File .\publish.ps1` | Папка для переноса `dist\ZI-scope\` (self-contained single-file `ZI-scope.exe` + `Drivers\` + `README.txt`); `-Output D:\path` — другая папка |
+| `powershell -ExecutionPolicy Bypass -File .\publish.ps1` | Папка для переноса `dist\ZI-scope\`: один self-contained `ZI-scope.exe` (~117 МБ, установщик драйверов вшит, `-p:EmbedDrivers=true`) + `README.txt`; `-Output D:\path` — другая папка |
 
 Вывод Debug: `src/LumeneraViewer/bin/x64/Debug/net8.0-windows10.0.19041.0/ZI-scope.exe`.
 
@@ -22,7 +22,8 @@ WPF-программа (.NET 8, x64; exe — `ZI-scope.exe`, пространс�
 ```
 src/LumeneraViewer/
   Camera/       ICamera, CameraFrame (BGR24), LuCamCamera (P/Invoke lucamapi.dll), SimulatedCamera, CameraFactory
-  Drivers/      DriverService (поиск и запуск комплектного установщика), DriverStartupFlow (диалоги при старте)
+  Drivers/      DriverService (поиск, распаковка вшитого и запуск комплектного установщика), DriverStartupFlow (диалоги при старте)
+  Assets/       ZI-scope.ico (иконка exe, `ApplicationIcon`) — рисует `tools/make_icon.py` (Pillow)
   Imaging/      ImageAdjustments + DeepColor (уровни, кривые, HSL, локальные операции), ImageProcessor(.Local), FrameAnalysis
   Calibration/  namespace LumeneraViewer.ImageCalibration: ScaleLineDetector, ScaleTextParser, ScaleTextRecognizer (офлайн-OCR Windows.Media.Ocr), PixelSizeTable
   Overlays/     OverlayState + OverlayRenderer (один код рисования для превью и файла), ScaleBarMath, Calibration (объективы), Measurement
@@ -36,6 +37,7 @@ tests/LumeneraViewer.Tests/   xUnit по чистой логике и швам
 installer/      README-УСТАНОВКА.txt в git; infinity*.exe (драйверы, 39 МБ) — только локально
 docs/adr/       решения 0001–0013
 publish.ps1     сборка папки для переноса
+tools/          make_icon.py — генератор иконки
 ```
 
 ## Ключевые файлы
@@ -71,7 +73,7 @@ publish.ps1     сборка папки для переноса
 - Главный снимок (Пробел и кнопка) — `host.PrimaryCaptureCommand`: при `SeriesPanel.IsActive` снимает шаг серии, иначе `CapturePanel.CaptureCommand`.
 - Серия: `SeriesRunner(SeriesSession, ISeriesEnvironment)` ведёт шаги; состояние — файл проекта `<имя серии>.zisc` в папке серии (`SeriesStore`: `Extension`, `Format "zi-scope-series/2"`, `ProjectFileName`, `Save`, `Load(путь .zisc)`, `FindProject(папка)`); метаданные кадров всех снятых шагов — одним списком `Frames` в нём, у снимков серии своего .json нет; «Открыть проект серии…» (`SeriesPanelViewModel.OpenSeriesCommand`, OpenFileDialog `*.zisc`); при активной серии внизу показывается `SeriesMap`.
 - Калибровка по снимку: `ScaleLineDetector` ищет линию (5 цветов) → `ScaleTextRecognizer` читает подпись офлайн-OCR (сначала над линией, потом под ней: `TextRegionAbove/TextRegionBelow`) → `ScaleTextParser` → `ScalePanel.SaveCalibration(mag, k)`; таблица мкм/px — `PixelSizeTable`.
-- Драйверы: `DriverStartupFlow.EnsureDriversAsync` при старте; установщик ищется в `<папка exe>\Drivers\`.
+- Драйверы: `DriverStartupFlow.EnsureDriversAsync` при старте; установщик ищется в `<папка exe>\Drivers\`, а если её нет — берётся вшитый в exe ресурс `ZI-scope.Drivers.<имя>` (`DriverService.EmbeddedPrefix`) и перед запуском распаковывается в `%LocalAppData%\ZI-scope\Drivers`.
 - Camera/Imaging/Overlays/Export/Series/Settings не знают хост; WPF-типы — в Overlays/Export/Calibration (DrawingContext, энкодеры, BitmapSource); хост знают только ViewModels/Views/UI/Drivers.
 
 ## Соглашения
@@ -94,7 +96,7 @@ publish.ps1     сборка папки для переноса
 ## Окружение
 
 - Реальная камера требует драйвер Lumenera (`lucamapi.dll` в системе); проверка — `CameraFactory.IsDriverAvailable()`.
-- Комплектный установщик: положить `installer\infinity_analyze_and_capture_for_windows_v_*.exe`; csproj копирует его в `Drivers\` вывода, `publish.ps1` без него падает. В git не попадает.
+- Комплектный установщик: положить `installer\infinity_analyze_and_capture_for_windows_v_*.exe`; обычная сборка копирует его в `Drivers\` вывода, с `-p:EmbedDrivers=true` (так делает `publish.ps1`) — вшивает в exe как ресурс; `publish.ps1` без него падает. В git не попадает.
 - Настройки: `%AppData%\ZI-scope\settings.json`; если его нет, а есть `%AppData%\LumeneraViewer\settings.json` — копируется (старый не трогается). Битый файл → `.bak` и умолчания.
 - Профили конфигурации: `%AppData%\ZI-scope\profiles`; при `--settings <файл>` — папка `profiles` рядом с этим файлом.
 - Снимки по умолчанию: `<Изображения>\ZI-scope`.

@@ -136,4 +136,71 @@ public sealed class DriverServiceTests : IDisposable
     {
         Assert.Equal(Path.Combine(AppContext.BaseDirectory, "Drivers"), new DriverService().DriversFolder);
     }
+
+    // ───── Установщик, вшитый в exe (сборка publish.ps1) ─────
+
+    private static readonly byte[] Payload = [0x4D, 0x5A, 1, 2, 3, 4, 5];
+
+    private static DriverService.EmbeddedInstaller Embedded(Action? onOpen = null) =>
+        new("infinity_setup.exe", Payload.Length, () => { onOpen?.Invoke(); return new MemoryStream(Payload); });
+
+    private DriverService EmbeddedService(FakeRunner r, DriverService.EmbeddedInstaller e) =>
+        new(Path.Combine(_dir, "Drivers"), () => true, r.Run, e, Path.Combine(_dir, "extract"));
+
+    [Fact]
+    public void FindBundledInstaller_NoFolder_EmbeddedGivesExtractPath_WithoutWriting()
+    {
+        var svc = EmbeddedService(new FakeRunner(), Embedded());
+        var path = svc.FindBundledInstaller();
+        Assert.Equal(Path.Combine(_dir, "extract", "infinity_setup.exe"), path);
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public void FindBundledInstaller_FolderExeWinsOverEmbedded()
+    {
+        Directory.CreateDirectory(Path.Combine(_dir, "Drivers"));
+        var exe = Path.Combine(_dir, "Drivers", "setup.exe");
+        File.WriteAllBytes(exe, [0x4D, 0x5A]);
+        Assert.Equal(exe, EmbeddedService(new FakeRunner(), Embedded()).FindBundledInstaller());
+    }
+
+    [Fact]
+    public async Task Install_Embedded_ExtractsThenRunsExtractedFile()
+    {
+        var r = new FakeRunner();
+        Assert.Equal(DriverInstallResult.Success, await EmbeddedService(r, Embedded()).InstallAsync(silent: true));
+        var path = Path.Combine(_dir, "extract", "infinity_setup.exe");
+        Assert.Equal(path, r.Psi!.FileName);
+        Assert.Equal(Payload, File.ReadAllBytes(path));
+        Assert.False(File.Exists(path + ".tmp"));
+    }
+
+    [Fact]
+    public async Task Install_Embedded_SameSizeFileAlreadyThere_NotRewritten()
+    {
+        var opened = 0;
+        var svc = EmbeddedService(new FakeRunner(), Embedded(() => opened++));
+        await svc.InstallAsync(silent: true);
+        await svc.InstallAsync(silent: true);
+        Assert.Equal(1, opened);
+    }
+
+    [Fact]
+    public async Task Install_Embedded_StaleFileOfOtherSize_Replaced()
+    {
+        var path = Path.Combine(_dir, "extract", "infinity_setup.exe");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, [9]);
+        await EmbeddedService(new FakeRunner(), Embedded()).InstallAsync(silent: true);
+        Assert.Equal(Payload, File.ReadAllBytes(path));
+    }
+
+    [Fact]
+    public void AppBuild_HasNoEmbeddedInstaller_WithoutEmbedDrivers()
+    {
+        // Обычная сборка (не publish.ps1) установщик не вшивает — exe не раздувается на 39 МБ
+        Assert.DoesNotContain(typeof(DriverService).Assembly.GetManifestResourceNames(),
+            n => n.StartsWith(DriverService.EmbeddedPrefix, StringComparison.Ordinal));
+    }
 }

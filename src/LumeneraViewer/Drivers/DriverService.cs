@@ -15,7 +15,7 @@ public sealed class InstallerStillRunningException : TimeoutException
 }
 
 /// <summary>
-/// Наличие драйверов камеры и их установка из комплекта программы (папка Drivers рядом с exe).
+/// Наличие драйверов камеры и их установка из комплекта программы (папка Drivers рядом с exe или установщик, вшитый в exe).
 /// В сеть не ходит: запускает только локальный установщик.
 /// </summary>
 public sealed class DriverService
@@ -28,33 +28,54 @@ public sealed class DriverService
     private const int ErrorCancelled = 1223;   // пользователь отказал в UAC
     private const int ExitRebootRequired = 3010;
 
+    /// <summary>Префикс имени ресурса установщика, вшитого в exe (сборка с <c>-p:EmbedDrivers=true</c>).</summary>
+    public const string EmbeddedPrefix = "ZI-scope.Drivers.";
+
     private readonly Func<bool> _isInstalled;
     private readonly Func<ProcessStartInfo, TimeSpan, CancellationToken, Task<int>> _run;
+    private readonly EmbeddedInstaller? _embedded;
 
     public DriverService(string? driversFolder = null)
-        : this(driversFolder, CameraFactory.IsDriverAvailable, RunProcessAsync) { }
+        : this(driversFolder, CameraFactory.IsDriverAvailable, RunProcessAsync, FromAssembly()) { }
 
-    /// <summary>Для тестов: подмена проверки драйвера и запуска процесса.</summary>
+    /// <summary>Для тестов: подмена проверки драйвера, запуска процесса и вшитого установщика.</summary>
     internal DriverService(string? driversFolder, Func<bool> isInstalled,
-        Func<ProcessStartInfo, TimeSpan, CancellationToken, Task<int>> runInstaller)
+        Func<ProcessStartInfo, TimeSpan, CancellationToken, Task<int>> runInstaller,
+        EmbeddedInstaller? embedded = null, string? extractFolder = null)
     {
         DriversFolder = driversFolder ?? Path.Combine(AppContext.BaseDirectory, "Drivers");
         _isInstalled = isInstalled;
         _run = runInstaller;
+        _embedded = embedded;
+        ExtractFolder = extractFolder ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZI-scope", "Drivers");
     }
 
+    /// <summary>Установщик, вшитый в exe: имя файла, размер и чтение содержимого.</summary>
+    internal sealed record EmbeddedInstaller(string FileName, long Length, Func<Stream> Open);
+
     public string DriversFolder { get; }
+
+    /// <summary>Куда распаковывается вшитый установщик перед запуском (<c>%LocalAppData%\ZI-scope\Drivers</c>).</summary>
+    public string ExtractFolder { get; }
 
     /// <summary>Драйвер есть, если lucamapi.dll загружается.</summary>
     public bool IsInstalled() => _isInstalled();
 
-    /// <summary>Первый *.exe в папке драйверов (по алфавиту) или null.</summary>
+    /// <summary>
+    /// Первый *.exe в папке драйверов (по алфавиту); если папки нет — путь, куда будет распакован установщик,
+    /// вшитый в exe (сам файл появится в <see cref="InstallAsync"/>); иначе null.
+    /// </summary>
     public string? FindBundledInstaller()
     {
-        if (!Directory.Exists(DriversFolder)) return null;
-        return Directory.EnumerateFiles(DriversFolder, "*.exe")
-            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
+        if (Directory.Exists(DriversFolder))
+        {
+            var exe = Directory.EnumerateFiles(DriversFolder, "*.exe")
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+            if (exe is not null) return exe;
+        }
+        return _embedded is null ? null : Path.Combine(ExtractFolder, _embedded.FileName);
     }
 
     /// <summary>Запуск комплектного установщика с правами администратора. silent=false — обычный мастер.</summary>
@@ -62,6 +83,19 @@ public sealed class DriverService
     {
         var exe = FindBundledInstaller();
         if (exe is null) return DriverInstallResult.InstallerNotFound;
+        if (_embedded is not null && exe == Path.Combine(ExtractFolder, _embedded.FileName))
+        {
+            try
+            {
+                await Task.Run(() => Extract(_embedded, exe), ct);
+            }
+            catch (OperationCanceledException) { return DriverInstallResult.Cancelled; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine($"Не удалось распаковать установщик драйверов: {ex}");
+                return DriverInstallResult.Failed;
+            }
+        }
 
         var psi = new ProcessStartInfo(exe)
         {
@@ -90,6 +124,36 @@ public sealed class DriverService
         // Код успеха ещё не значит, что DLL доступна — перепроверяем.
         if (!_isInstalled()) return DriverInstallResult.Failed;
         return code == ExitRebootRequired ? DriverInstallResult.SuccessRebootRequired : DriverInstallResult.Success;
+    }
+
+    /// <summary>Вшитый в exe установщик или null (обычная сборка).</summary>
+    private static EmbeddedInstaller? FromAssembly()
+    {
+        var asm = typeof(DriverService).Assembly;
+        var name = asm.GetManifestResourceNames()
+            .Where(n => n.StartsWith(EmbeddedPrefix, StringComparison.Ordinal))
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (name is null) return null;
+        using var s = asm.GetManifestResourceStream(name);
+        if (s is null) return null;
+        return new EmbeddedInstaller(name[EmbeddedPrefix.Length..], s.Length,
+            () => asm.GetManifestResourceStream(name) ?? throw new IOException("Ресурс установщика не найден: " + name));
+    }
+
+    /// <summary>
+    /// Распаковать установщик в <paramref name="path"/>: файл того же размера уже есть — не трогаем,
+    /// иначе пишем во временный файл и переименовываем.
+    /// </summary>
+    internal static void Extract(EmbeddedInstaller e, string path)
+    {
+        if (File.Exists(path) && new FileInfo(path).Length == e.Length) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var tmp = path + ".tmp";
+        using (var src = e.Open())
+        using (var dst = File.Create(tmp))
+            src.CopyTo(dst);
+        File.Move(tmp, path, overwrite: true);
     }
 
     /// <summary>

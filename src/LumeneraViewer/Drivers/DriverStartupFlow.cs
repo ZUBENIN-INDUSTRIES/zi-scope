@@ -23,7 +23,7 @@ public static class DriverStartupFlow
             Title = "Драйверы камеры не найдены",
             Content = Dialogs.Text(
                 "Программа не нашла драйвер камеры Lumenera (lucamapi.dll), поэтому не может подключиться к микроскопу.",
-                "Драйверы можно установить прямо сейчас из комплекта программы (папка Drivers рядом с программой). " +
+                "Драйверы можно установить прямо сейчас из комплекта программы. " +
                 "Интернет не нужен — ничего не скачивается. Потребуются права администратора."),
             PrimaryButtonText = "Установить",
             PrimaryButtonIcon = new SymbolIcon(SymbolRegular.ArrowDownload24),
@@ -59,7 +59,7 @@ public static class DriverStartupFlow
         {
             Title = installed ? "Переустановить драйверы из комплекта?" : "Установить драйверы из комплекта?",
             Content = Dialogs.Text(
-                "Будет запущен установщик INFINITY ANALYZE/CAPTURE из папки Drivers рядом с программой. " +
+                "Будет запущен установщик INFINITY ANALYZE/CAPTURE из комплекта программы. " +
                 "Интернет не нужен. Потребуются права администратора.",
                 hasCamera ? "На время установки камера будет отключена, после — подключится снова." : null),
             PrimaryButtonText = installed ? "Переустановить" : "Установить",

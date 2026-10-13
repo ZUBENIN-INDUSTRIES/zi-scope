@@ -14,15 +14,25 @@
     <Title>ZI-scope</Title>
     <RootNamespace>LumeneraViewer</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\ZI-scope.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="LumeneraViewer.Tests" />
   </ItemGroup>
 
-  <!-- Комплектный установщик драйверов (таск 03): installer\infinity*.exe → Drivers\ рядом с exe.
-       Шаблон: если установщика нет, сборка не падает, просто нечего копировать. -->
   <ItemGroup>
+    <Resource Include="Assets\ZI-scope.ico" />
+  </ItemGroup>
+
+  <!-- Комплектный установщик драйверов (таск 03): installer\infinity*.exe → Drivers\ рядом с exe.
+       Шаблон: если установщика нет, сборка не падает, просто нечего копировать.
+       С -p:EmbedDrivers=true (publish.ps1) установщик вшивается в сам exe и в Drivers\ не копируется:
+       DriverService распакует его перед установкой (см. DriverService.EmbeddedPrefix). -->
+  <ItemGroup Condition="'$(EmbedDrivers)' == 'true'">
+    <EmbeddedResource Include="..\..\installer\infinity*.exe" LogicalName="ZI-scope.Drivers.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(EmbedDrivers)' != 'true'">
     <None Include="..\..\installer\infinity*.exe" LinkBase="Drivers"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
           ExcludeFromSingleFile="true" />
