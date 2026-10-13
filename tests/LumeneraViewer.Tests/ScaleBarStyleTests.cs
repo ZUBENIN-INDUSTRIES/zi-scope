@@ -138,3 +138,12 @@ public class UnitLanguageTests
         Assert.Equal(UnitLanguage.English, OverlayState.FromSettings(a).UnitLanguage);
     }
 }
+
+public class OverlayColorListTests
+{
+    [Fact]
+    public void HasPureBlue() => Assert.Contains(OverlayColors.All, c => c.Hex == "#0000FF" && c.Name == "Ярко-синий");
+
+    [Fact]
+    public void ColorsAreUnique() => Assert.Equal(OverlayColors.All.Count, OverlayColors.All.Select(c => c.Hex).Distinct().Count());
+}

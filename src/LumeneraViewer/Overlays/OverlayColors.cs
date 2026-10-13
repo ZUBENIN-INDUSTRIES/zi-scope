@@ -24,6 +24,7 @@ public static class OverlayColors
         new("Красный", Color.FromRgb(0xEF, 0x44, 0x44)),
         new("Пурпурный", Color.FromRgb(0xD9, 0x46, 0xEF)),
         new("Синий", Color.FromRgb(0x3B, 0x82, 0xF6)),
+        new("Ярко-синий", Color.FromRgb(0x00, 0x00, 0xFF)),
         new("Голубой", Color.FromRgb(0x22, 0xD3, 0xEE)),
         new("Зелёный", Color.FromRgb(0x22, 0xC5, 0x5E)),
         new("Серый", Color.FromRgb(0x9C, 0xA3, 0xAF)),
