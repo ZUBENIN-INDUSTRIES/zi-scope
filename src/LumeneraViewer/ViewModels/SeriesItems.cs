@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -25,14 +26,33 @@ public partial class SeriesMagOption : ObservableObject
 /// <summary>Оформление вида кадра с подписью для списка.</summary>
 public sealed record DecorationOption(FrameDecoration Value, string Name);
 
+/// <summary>Увеличение в настройках вида кадра: снимать ли этот вид на нём.</summary>
+public partial class KindMagChoice : ObservableObject
+{
+    public KindMagChoice(int value, bool isChecked)
+    {
+        Value = value;
+        _isChecked = isChecked;
+    }
+
+    public int Value { get; }
+    public string Text => "×" + Value.ToString(CultureInfo.InvariantCulture);
+    [ObservableProperty] private bool _isChecked;
+}
+
 /// <summary>Строка списка видов кадра в конструкторе.</summary>
 public partial class SeriesKindRow : ObservableObject
 {
+    private readonly HashSet<int>? _initialMags;
+
     public SeriesKindRow(FrameKind k)
     {
         _number = k.Number;
         _name = k.Name;
         _decoration = SeriesKindRow.Decorations.First(d => d.Value == k.Decoration);
+        _separate = k.Separate;
+        _hint = k.Hint ?? "";
+        _initialMags = k.Magnifications is { Count: > 0 } m ? m.ToHashSet() : null;
     }
 
     public static IReadOnlyList<DecorationOption> Decorations { get; } = new[]
@@ -48,8 +68,66 @@ public partial class SeriesKindRow : ObservableObject
     [ObservableProperty] private string _name;
     [ObservableProperty] private DecorationOption _decoration;
 
-    public FrameKind ToKind() => new((int)Math.Clamp(Math.Round(double.IsFinite(Number) ? Number : 1), 1, 999),
-        string.IsNullOrWhiteSpace(Name) ? "Вид" : Name.Trim(), Decoration?.Value ?? FrameDecoration.Clean);
+    /// <summary>Дополнительный кадр: отдельное нажатие после обычных видов шага.</summary>
+    [ObservableProperty] private bool _separate;
+
+    /// <summary>Подсказка перед дополнительным кадром.</summary>
+    [ObservableProperty] private string _hint;
+
+    /// <summary>На каких из отмеченных в серии увеличений снимать этот вид.</summary>
+    public ObservableCollection<KindMagChoice> MagChoices { get; } = new();
+
+    /// <summary>Привести список увеличений вида к увеличениям серии: новые — отмечены (или как было в сохранённом виде).</summary>
+    public void SyncMagnifications(IReadOnlyList<int> seriesMags)
+    {
+        foreach (var gone in MagChoices.Where(c => !seriesMags.Contains(c.Value)).ToList())
+        {
+            gone.PropertyChanged -= OnChoiceChanged;
+            MagChoices.Remove(gone);
+        }
+        for (var i = 0; i < seriesMags.Count; i++)
+        {
+            var m = seriesMags[i];
+            if (MagChoices.Any(c => c.Value == m)) continue;
+            var c = new KindMagChoice(m, _initialMags is null || _initialMags.Contains(m));
+            c.PropertyChanged += OnChoiceChanged;
+            MagChoices.Insert(Math.Min(i, MagChoices.Count), c);
+        }
+        OnPropertyChanged(nameof(MagSummary));
+    }
+
+    private void OnChoiceChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(MagSummary));
+        OnPropertyChanged(nameof(MagChoices));
+    }
+
+    /// <summary>«на всех увеличениях» / «только ×100, ×200» / «ни на одном».</summary>
+    public string MagSummary
+    {
+        get
+        {
+            var on = MagChoices.Where(c => c.IsChecked).ToList();
+            if (on.Count == MagChoices.Count) return "на всех увеличениях серии";
+            if (on.Count == 0) return "ни на одном увеличении — вид не будет сниматься";
+            return "только " + string.Join(", ", on.Select(c => c.Text));
+        }
+    }
+
+    public FrameKind ToKind()
+    {
+        var on = MagChoices.Where(c => c.IsChecked).Select(c => c.Value).ToArray();
+        // Все увеличения отмечены — null («на всех», в том числе на добавленных позже). Ни одного — пустой фильтр
+        // означал бы «на всех», поэтому несуществующее увеличение 0.
+        IReadOnlyList<int>? mags = MagChoices.Count == 0 || on.Length == MagChoices.Count ? null : on.Length == 0 ? new[] { 0 } : on;
+        return new FrameKind((int)Math.Clamp(Math.Round(double.IsFinite(Number) ? Number : 1), 1, 999),
+            string.IsNullOrWhiteSpace(Name) ? "Вид" : Name.Trim(), Decoration?.Value ?? FrameDecoration.Clean)
+        {
+            Separate = Separate,
+            Magnifications = mags,
+            Hint = Separate && !string.IsNullOrWhiteSpace(Hint) ? Hint.Trim() : null,
+        };
+    }
 }
 
 /// <summary>Шаг на карте серии: статус, текущий ли, миниатюра первого снятого вида.</summary>
@@ -73,11 +151,14 @@ public partial class SeriesStepItem : ObservableObject
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(StatusText), nameof(Tooltip))] private StepStatus _status;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(StatusText), nameof(Tooltip))] private bool _isPartial;
+    /// <summary>Обычные виды сняты, дополнительный кадр ещё ждёт.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(StatusText), nameof(Tooltip))] private bool _awaitsExtra;
     [ObservableProperty] private bool _isCurrent;
 
     public string StatusText => Status switch
     {
         StepStatus.Done when IsPartial => "снят частично",
+        StepStatus.Done when AwaitsExtra => "ждёт доп. кадр",
         StepStatus.Done => "снят",
         StepStatus.Skipped => "пропущен",
         _ => "не снят",

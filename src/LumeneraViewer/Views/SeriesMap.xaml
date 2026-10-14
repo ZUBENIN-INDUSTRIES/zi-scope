@@ -103,6 +103,9 @@
                             <DataTrigger Binding="{Binding IsPartial}" Value="True">
                                 <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Zs.Warning}"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding AwaitsExtra}" Value="True">
+                                <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Zs.Warning}"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                                 <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Zs.Accent}"/>
                                 <Setter TargetName="Tile" Property="Background" Value="{StaticResource Zs.AccentSelection}"/>

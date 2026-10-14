@@ -61,7 +61,7 @@ public static class SeriesStore
         var done = s.Records.Where(r => r.Value.Status != StepStatus.Pending).ToList();
         var steps = done
             .Select(r => new StepDto(r.Key.Group, r.Key.Sample, r.Key.Magnification, r.Value.Status,
-                r.Value.Files.Select(f => ToStored(s.Folder, f)).ToList(), r.Value.When))
+                r.Value.Files.Select(f => ToStored(s.Folder, f)).ToList(), r.Value.When, r.Value.SkippedKinds?.ToList()))
             .ToList();
         // Метаданные — по записи на файл снятого шага. Запись находится по имени файла, не по позиции: у шага из
         // правленого вручную проекта записей может быть меньше, чем файлов, и чужое имя запись получать не должна.
@@ -127,7 +127,8 @@ public static class SeriesStore
             var frames = st.Status == StepStatus.Done
                 ? files.Where(meta.ContainsKey).Select(f => meta[f] with { File = Path.GetFileName(f) }).ToArray()
                 : null;
-            records.Add((key, new StepRecord(st.Status, files, st.When, frames is { Length: > 0 } ? frames : null)));
+            records.Add((key, new StepRecord(st.Status, files, st.When, frames is { Length: > 0 } ? frames : null,
+                st.SkippedKinds is { Count: > 0 } ? st.SkippedKinds : null)));
         }
         var extra = (dto.Extra ?? new()).Select(FromDto).Where(k => !lost.Contains(k));
         session.Restore(records, extra, FromDto(dto.Current ?? new KeyDto(1, 1, 0)), dto.Reshooting);
@@ -148,7 +149,8 @@ public static class SeriesStore
 
     private sealed record KeyDto(int Group, int Sample, int Magnification);
 
-    private sealed record StepDto(int Group, int Sample, int Magnification, StepStatus Status, List<string>? Files, DateTime? When);
+    private sealed record StepDto(int Group, int Sample, int Magnification, StepStatus Status, List<string>? Files, DateTime? When,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<int>? SkippedKinds = null);
 
     private sealed record FileDto(
         [property: JsonPropertyName("format")] string? Format,

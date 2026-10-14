@@ -147,6 +147,7 @@ public partial class SeriesPanelViewModel : ObservableObject
         Kinds.Clear();
         var kinds = d.Kinds is { Count: > 0 } ? d.Kinds : SeriesPlan.DefaultKinds.ToList();
         foreach (var k in kinds) AddKindRow(new SeriesKindRow(k));
+        SyncKindMagnifications();
 
         _folderEdited = false;
         Name = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -165,10 +166,24 @@ public partial class SeriesPanelViewModel : ObservableObject
     private void AddKindRow(SeriesKindRow r)
     {
         r.PropertyChanged += OnKindChanged;
+        r.SyncMagnifications(CheckedMagnifications());
         Kinds.Add(r);
     }
 
-    private void OnMagOptionChanged(object? s, PropertyChangedEventArgs e) => OnPropertyChanged(nameof(SummaryText));
+    private IReadOnlyList<int> CheckedMagnifications() => MagOptions.Where(o => o.IsChecked).Select(o => o.Value).Order().ToArray();
+
+    /// <summary>Списки увеличений у видов кадра — по отмеченным увеличениям серии.</summary>
+    private void SyncKindMagnifications()
+    {
+        var mags = CheckedMagnifications();
+        foreach (var k in Kinds) k.SyncMagnifications(mags);
+    }
+
+    private void OnMagOptionChanged(object? s, PropertyChangedEventArgs e)
+    {
+        SyncKindMagnifications();
+        OnPropertyChanged(nameof(SummaryText));
+    }
     private void OnKindChanged(object? s, PropertyChangedEventArgs e) => OnPropertyChanged(nameof(SummaryText));
 
     [RelayCommand]
@@ -188,6 +203,7 @@ public partial class SeriesPanelViewModel : ObservableObject
             o.PropertyChanged += OnMagOptionChanged;
             MagOptions.Insert(idx, o);
         }
+        SyncKindMagnifications();
         CustomMagText = "";
         OnPropertyChanged(nameof(SummaryText));
     }
@@ -200,10 +216,23 @@ public partial class SeriesPanelViewModel : ObservableObject
         OnPropertyChanged(nameof(SummaryText));
     }
 
+    /// <summary>«Добавить доп. кадр»: вид, который снимается отдельным нажатием после обычных (другое поле зрения).</summary>
+    [RelayCommand]
+    private void AddSeparateKind()
+    {
+        var next = Kinds.Count == 0 ? 1 : (int)Kinds.Max(k => k.Number) + 1;
+        AddKindRow(new SeriesKindRow(new FrameKind(next, "Дополнительный", FrameDecoration.ScaleBar)
+        {
+            Separate = true,
+            Hint = "Сдвиньте препарат на другое поле зрения",
+        }));
+        OnPropertyChanged(nameof(SummaryText));
+    }
+
     [RelayCommand]
     private void RemoveKind(SeriesKindRow? row)
     {
-        if (row is null || Kinds.Count <= 1) return;
+        if (row is null || Kinds.Count(k => !k.Separate) <= 1 && !row.Separate) return;
         row.PropertyChanged -= OnKindChanged;
         Kinds.Remove(row);
         OnPropertyChanged(nameof(SummaryText));
@@ -257,6 +286,13 @@ public partial class SeriesPanelViewModel : ObservableObject
         if (plan.Kinds.Count != Kinds.Count)
         {
             Host.Notify("Серия не начата", "У видов кадра повторяются номера — задайте разные.", NotifyKind.Warning);
+            return;
+        }
+        if (plan.Magnifications.Any(m => plan.KindsAt(m).Count == 0))
+        {
+            var empty = plan.Magnifications.Where(m => plan.KindsAt(m).Count == 0).Select(m => "×" + m);
+            Host.Notify("Серия не начата", $"На {string.Join(", ", empty)} не снимается ни один вид кадра — отметьте увеличение хотя бы у одного вида.",
+                NotifyKind.Warning);
             return;
         }
         var folder = (Folder ?? "").Trim().Trim('"');
@@ -434,6 +470,8 @@ public partial class SeriesPanelViewModel : ObservableObject
             var rec = r.Session.RecordOf(k);
             var where = r.Session.IsInPlan(k) ? "" : "вне плана · ";
             if (r.Session.Reshooting) return where + "пересъёмка: файлы будут перезаписаны";
+            if (r.NextSeparateKind(k) is { } extra)
+                return where + $"обычные виды сняты · дальше доп. кадр «{extra.Name}» (вид {extra.Number})";
             return where + rec.Status switch
             {
                 StepStatus.Done when r.IsPartial(k) => "уже снят частично",
@@ -447,6 +485,7 @@ public partial class SeriesPanelViewModel : ObservableObject
     public string ProgressText => Runner is { } r
         ? $"{r.Session.DoneCount} / {r.Plan.StepCount} {RuWords.Plural(r.Plan.StepCount, "шага", "шагов", "шагов")}"
           + (r.PartialCount > 0 ? $", из них {r.PartialCount} без масштаба" : "")
+          + (r.AwaitingExtraCount > 0 ? $", {r.AwaitingExtraCount} ждут доп. кадр" : "")
           + (r.Session.ExtraSteps.Count > 0 ? $" · вне плана {r.Session.ExtraSteps.Count}" : "")
           + (SeriesRunner.IsFinished(r.Session) ? " · серия пройдена" : "")
         : "";
@@ -454,12 +493,45 @@ public partial class SeriesPanelViewModel : ObservableObject
     public double ProgressFraction => Runner is { Plan.StepCount: > 0 } r ? (double)r.Session.DoneCount / r.Plan.StepCount : 0;
 
     /// <summary>Увеличение, на которое программа сама переключилась: просим переключить микроскоп. null — не нужно.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(PromptText), nameof(HasPrompt))] private int? _promptMagnification;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(PromptText), nameof(HasPrompt), nameof(HasMagPrompt))] private int? _promptMagnification;
 
-    public bool HasPrompt => PromptMagnification is not null;
+    /// <summary>Просьба переключить микроскоп (строка в панели).</summary>
+    public bool HasMagPrompt => PromptMagnification is not null;
+
+    public bool HasPrompt => PromptMagnification is not null || NextExtraKind is not null;
 
     public string PromptText => PromptMagnification is { } m
-        ? $"Переключите микроскоп на ×{m}, наведитесь и нажмите «Снять шаг»" : "";
+        ? $"Переключите микроскоп на ×{m}, наведитесь и нажмите «Снять шаг»"
+        : NextExtraKind is { } k ? ExtraPromptText(k) : "";
+
+    /// <summary>Дополнительный кадр, который снимет следующее нажатие; null — обычные виды.</summary>
+    public FrameKind? NextExtraKind => Runner is { } r ? r.NextSeparateKind(r.Current) : null;
+
+    public bool IsExtraPhase => NextExtraKind is not null;
+
+    /// <summary>Подпись главной кнопки прогона.</summary>
+    public string CaptureButtonText => NextExtraKind is { } k ? $"Снять доп. кадр ({k.Number})" : "Снять шаг";
+
+    /// <summary>Просьба перед дополнительным кадром — под главной кнопкой и поверх превью.</summary>
+    public string ExtraText => NextExtraKind is { } k ? ExtraPromptText(k) : "";
+
+    private static string ExtraPromptText(FrameKind k) =>
+        $"Сделайте дополнительный кадр «{k.Name}» (вид {k.Number}): "
+        + (string.IsNullOrWhiteSpace(k.Hint) ? "смените поле зрения" : k.Hint!.TrimEnd('.').ToLowerFirst())
+        + " и нажмите «Снять»"
+        + (k.Decoration == FrameDecoration.Clean ? "" : " — с масштабом");
+
+    /// <summary>«Пропустить доп. кадр»: ждущий дополнительный кадр текущего шага не снимается.</summary>
+    [RelayCommand(CanExecute = nameof(CanSkipExtra))]
+    private void SkipExtra()
+    {
+        if (Runner is not { } r) return;
+        var kind = r.NextSeparateKind(r.Current);
+        if (r.SkipSeparate() && kind is not null)
+            Host.Notify("Доп. кадр пропущен", $"«{kind.Name}» (вид {kind.Number})", NotifyKind.Info);
+    }
+
+    private bool CanSkipExtra() => Runner is not null && !IsCapturing && IsExtraPhase;
 
     /// <summary>Нет калибровки для увеличения шага, а есть вид с масштабом.</summary>
     public bool NeedsCalibration => Runner is { } r && !r.CanCaptureFull(r.Current);
@@ -467,9 +539,9 @@ public partial class SeriesPanelViewModel : ObservableObject
     public string CalibrationHint => Runner is { } r && NeedsCalibration
         ? $"×{r.Current.Magnification} не откалиброван — откалибруйте во вкладке «Масштаб» или снимите только виды без масштаба" : "";
 
-    public bool HasCleanKinds => Runner?.Plan.Kinds.Any(k => k.Decoration == FrameDecoration.Clean) == true;
+    public bool HasCleanKinds => Runner is { } r && r.NextKinds(r.Current, cleanOnly: true).Count > 0;
 
-    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(CaptureStepCommand), nameof(CaptureCleanCommand))] private bool _isCapturing;
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(CaptureStepCommand), nameof(CaptureCleanCommand), nameof(SkipExtraCommand))] private bool _isCapturing;
 
     private bool CanCaptureStep() => Runner is not null && !IsCapturing && !NeedsCalibration;
     private bool CanCaptureClean() => Runner is not null && !IsCapturing && HasCleanKinds;
@@ -507,7 +579,9 @@ public partial class SeriesPanelViewModel : ObservableObject
             {
                 case StepCaptureResult.Captured:
                     var files = r.Session.RecordOf(step).Files.Select(Path.GetFileName);
-                    Host.Notify("Шаг снят", string.Join(", ", files), NotifyKind.Success);
+                    var next = r.Current == step ? r.NextSeparateKind(step) : null;
+                    Host.Notify(next is null ? "Шаг снят" : "Обычные виды сняты", string.Join(", ", files)
+                        + (next is null ? "" : $". Дальше — доп. кадр «{next.Name}» (вид {next.Number})"), NotifyKind.Success);
                     break;
                 case StepCaptureResult.NeedsCalibration:
                     PromptMagnification = prompt;
@@ -553,6 +627,7 @@ public partial class SeriesPanelViewModel : ObservableObject
             ["KindName"] = kind.Name,
             ["Decoration"] = kind.Decoration.ToString(),
         };
+        if (kind.Separate) extra["Separate"] = "true";
         return _exporter.SaveExactAsync(frame, overlay is { IsEmpty: false } ? overlay : null, meta,
             S.Export ??= new ExportSettings(), path, overwrite, extra);
     }
@@ -724,6 +799,7 @@ public partial class SeriesPanelViewModel : ObservableObject
                 var rec = r.Session.RecordOf(item.Key);
                 item.Status = rec.Status;
                 item.IsPartial = r.IsPartial(item.Key);
+                item.AwaitsExtra = !item.IsPartial && r.PendingSeparateKinds(item.Key).Count > 0;
                 item.IsCurrent = item.Key == r.Current;
                 item.SetThumbSource(rec.Status == StepStatus.Done && rec.Files.Count > 0 ? rec.Files[0] : null, rec.When);
             }
@@ -738,8 +814,15 @@ public partial class SeriesPanelViewModel : ObservableObject
         OnPropertyChanged(nameof(NeedsCalibration));
         OnPropertyChanged(nameof(CalibrationHint));
         OnPropertyChanged(nameof(HasCleanKinds));
+        OnPropertyChanged(nameof(NextExtraKind));
+        OnPropertyChanged(nameof(IsExtraPhase));
+        OnPropertyChanged(nameof(CaptureButtonText));
+        OnPropertyChanged(nameof(ExtraText));
+        OnPropertyChanged(nameof(HasPrompt));
+        OnPropertyChanged(nameof(PromptText));
         CaptureStepCommand.NotifyCanExecuteChanged();
         CaptureCleanCommand.NotifyCanExecuteChanged();
+        SkipExtraCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Текущий шаг на карте (для прокрутки к нему); null — номер вне карты.</summary>
@@ -806,4 +889,11 @@ public partial class SeriesPanelViewModel : ObservableObject
         _exporter.WaitIdle(TimeSpan.FromSeconds(10));
         _exporter.Dispose();
     }
+}
+
+internal static class SeriesTextExtensions
+{
+    /// <summary>Первая буква строчной — для подсказки внутри фразы.</summary>
+    public static string ToLowerFirst(this string s) =>
+        string.IsNullOrEmpty(s) ? s : char.ToLower(s[0], System.Globalization.CultureInfo.CurrentCulture) + s[1..];
 }

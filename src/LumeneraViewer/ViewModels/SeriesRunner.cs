@@ -50,7 +50,8 @@ public enum StepCaptureResult
 public delegate Task<FrameMetadata> SaveFrameKind(FrameKind kind, string fullPath, bool overwrite);
 
 /// <summary>
-/// Логика прогона серии без UI: съёмка шага (все виды кадра по шаблону имени), переход дальше,
+/// Логика прогона серии без UI: съёмка шага (обычные виды кадра по шаблону имени одним нажатием, затем
+/// дополнительные кадры — по одному на нажатие, их можно пропустить), переход дальше,
 /// переключение увеличения, пересъёмка, удаление, пропуск, произвольный номер. Вызывать из одного потока.
 /// <para>«Снять без масштаба» (нет калибровки): снимаются только чистые виды, шаг отмечается снятым
 /// (Done) с неполным набором файлов — это «частично» (<see cref="IsPartial"/>); его можно переснять позже.</para>
@@ -78,33 +79,98 @@ public sealed class SeriesRunner
     /// <summary>Шагов плана, снятых частично (без видов с масштабом).</summary>
     public int PartialCount => PartialSteps(Session).Count();
 
-    /// <summary>
-    /// Серия пройдена: неснятых шагов нет и нет частично снятых. Частичный шаг в файле серии — обычный Done
-    /// с неполным набором файлов (формат файла тот же).
-    /// </summary>
-    public static bool IsFinished(SeriesSession s) => s.IsComplete && !PartialSteps(s).Any();
+    /// <summary>Шагов плана, у которых сняты обычные виды, но остались дополнительные кадры.</summary>
+    public int AwaitingExtraCount => AwaitingExtraSteps(Session).Count();
 
-    /// <summary>Частично снятые шаги плана в порядке обхода.</summary>
+    /// <summary>
+    /// Серия пройдена: неснятых шагов нет, нет частично снятых и нет шагов, ждущих дополнительный кадр.
+    /// Частичный шаг в файле серии — обычный Done с неполным набором файлов (формат файла тот же).
+    /// </summary>
+    public static bool IsFinished(SeriesSession s) => s.IsComplete && !PartialSteps(s).Any() && !AwaitingExtraSteps(s).Any();
+
+    /// <summary>Частично снятые шаги плана (не все обычные виды) в порядке обхода.</summary>
     public static IEnumerable<SeriesStepKey> PartialSteps(SeriesSession s) =>
-        s.Plan.EnumerateSteps().Where(k => s.RecordOf(k) is { Status: StepStatus.Done } r && r.Files.Count < s.Plan.Kinds.Count);
+        s.Plan.EnumerateSteps().Where(k => IsPartial(s, k));
+
+    /// <summary>Шаги плана, ждущие дополнительный кадр, в порядке обхода.</summary>
+    public static IEnumerable<SeriesStepKey> AwaitingExtraSteps(SeriesSession s) =>
+        s.Plan.EnumerateSteps().Where(k => PendingSeparate(s, k).Count > 0);
+
+    /// <summary>Номера видов, файлы которых есть в записи шага (по имени файла без расширения).</summary>
+    private static HashSet<int> CapturedNumbers(SeriesSession s, SeriesStepKey k)
+    {
+        var rec = s.RecordOf(k);
+        var names = rec.Files.Select(Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return s.Plan.Kinds.Where(kind => names.Contains(Path.GetFileNameWithoutExtension(SeriesNaming.FileName(s.Plan, k, kind, ""))))
+            .Select(kind => kind.Number).ToHashSet();
+    }
+
+    private static bool IsPartial(SeriesSession s, SeriesStepKey k)
+    {
+        if (s.RecordOf(k).Status != StepStatus.Done) return false;
+        var got = CapturedNumbers(s, k);
+        return s.Plan.MainKindsAt(k.Magnification).Any(kind => !got.Contains(kind.Number));
+    }
+
+    /// <summary>Дополнительные кадры снятого шага, которые ещё не сняты и не пропущены (в порядке списка).</summary>
+    private static IReadOnlyList<FrameKind> PendingSeparate(SeriesSession s, SeriesStepKey k)
+    {
+        var rec = s.RecordOf(k);
+        if (rec.Status != StepStatus.Done) return Array.Empty<FrameKind>();
+        var got = CapturedNumbers(s, k);
+        var skipped = rec.SkippedKinds ?? Array.Empty<int>();
+        return s.Plan.SeparateKindsAt(k.Magnification).Where(kind => !got.Contains(kind.Number) && !skipped.Contains(kind.Number)).ToArray();
+    }
 
     /// <summary>Среди видов кадра есть вид с плашкой масштаба.</summary>
     public bool NeedsScale => Plan.Kinds.Any(k => k.Decoration != FrameDecoration.Clean);
 
-    /// <summary>Шаг можно снять всеми видами (калибровка есть или она не нужна).</summary>
-    public bool CanCaptureFull(SeriesStepKey k) => !NeedsScale || _env.IsCalibrated(k.Magnification);
+    /// <summary>То, что снимет следующее «Снять шаг» на шаге <paramref name="k"/>, можно снять целиком (калибровка есть или не нужна).</summary>
+    public bool CanCaptureFull(SeriesStepKey k) =>
+        !NextKinds(k).Any(kind => kind.Decoration != FrameDecoration.Clean) || _env.IsCalibrated(k.Magnification);
 
-    /// <summary>Шаг снят не всеми видами («Снять без масштаба»).</summary>
-    public bool IsPartial(SeriesStepKey k) =>
-        Session.RecordOf(k) is { Status: StepStatus.Done } r && r.Files.Count < Plan.Kinds.Count;
+    /// <summary>Шаг снят не всеми обычными видами («Снять без масштаба»).</summary>
+    public bool IsPartial(SeriesStepKey k) => IsPartial(Session, k);
 
-    /// <summary>Виды кадра для съёмки: все или только чистые.</summary>
-    public IReadOnlyList<FrameKind> KindsFor(bool cleanOnly) =>
-        cleanOnly ? Plan.Kinds.Where(k => k.Decoration == FrameDecoration.Clean).ToArray() : Plan.Kinds;
+    /// <summary>
+    /// Дополнительный кадр, который снимет следующее «Снять шаг» на шаге <paramref name="k"/>; null — следующее
+    /// нажатие снимает обычные виды.
+    /// </summary>
+    public FrameKind? NextSeparateKind(SeriesStepKey k)
+    {
+        if (Session.Reshooting && k == Current) return null;
+        var pending = PendingSeparate(Session, k);
+        return pending.Count > 0 ? pending[0] : null;
+    }
 
-    /// <summary>Полные пути файлов шага по шаблону: все виды или только чистые.</summary>
+    /// <summary>Дополнительные кадры шага, ещё не снятые и не пропущенные.</summary>
+    public IReadOnlyList<FrameKind> PendingSeparateKinds(SeriesStepKey k) => PendingSeparate(Session, k);
+
+    /// <summary>
+    /// Виды, которые снимет следующее нажатие на шаге: дополнительный кадр, если обычные уже сняты, а он ждёт;
+    /// иначе обычные виды увеличения (<paramref name="cleanOnly"/> — только без оформления). На увеличении,
+    /// где обычных видов нет, первое нажатие снимает первый дополнительный кадр.
+    /// </summary>
+    public IReadOnlyList<FrameKind> NextKinds(SeriesStepKey k, bool cleanOnly = false)
+    {
+        IReadOnlyList<FrameKind> kinds;
+        if (NextSeparateKind(k) is { } sep) kinds = new[] { sep };
+        else
+        {
+            kinds = Plan.MainKindsAt(k.Magnification);
+            if (kinds.Count == 0 && Plan.SeparateKindsAt(k.Magnification) is { Count: > 0 } all) kinds = new[] { all[0] };
+        }
+        return cleanOnly ? kinds.Where(x => x.Decoration == FrameDecoration.Clean).ToArray() : kinds;
+    }
+
+    /// <summary>Полный путь файла вида шага по шаблону.</summary>
+    public string PathOf(SeriesStepKey k, FrameKind kind) =>
+        Path.Combine(Session.Folder, SeriesNaming.FileName(Plan, k, kind, _env.FileExtension));
+
+    /// <summary>Полные пути файлов обычных видов шага по шаблону: все или только чистые.</summary>
     public IReadOnlyList<string> PathsFor(SeriesStepKey k, bool cleanOnly = false) =>
-        KindsFor(cleanOnly).Select(kind => Path.Combine(Session.Folder, SeriesNaming.FileName(Plan, k, kind, _env.FileExtension))).ToArray();
+        Plan.MainKindsAt(k.Magnification).Where(kind => !cleanOnly || kind.Decoration == FrameDecoration.Clean)
+            .Select(kind => PathOf(k, kind)).ToArray();
 
     /// <summary>Поставить в программе увеличение текущего шага. true — пришлось переключить.</summary>
     public bool SyncMagnification()
@@ -116,8 +182,9 @@ public sealed class SeriesRunner
     }
 
     /// <summary>
-    /// Снять текущий шаг: <paramref name="cleanOnly"/> — только виды без оформления. Виды пишутся по очереди;
-    /// ошибка записи пробрасывается, шаг тогда не отмечается.
+    /// Снять текущий шаг: обычные виды (<paramref name="cleanOnly"/> — только без оформления) или ждущий
+    /// дополнительный кадр. Виды пишутся по очереди; ошибка записи пробрасывается, шаг тогда не меняется.
+    /// Пока у шага остаются дополнительные кадры, он остаётся текущим.
     /// </summary>
     public async Task<StepCaptureResult> CaptureAsync(SaveFrameKind save, bool cleanOnly = false)
     {
@@ -130,9 +197,10 @@ public sealed class SeriesRunner
         }
         if (!cleanOnly && !CanCaptureFull(key)) return StepCaptureResult.NeedsCalibration;
 
-        var kinds = KindsFor(cleanOnly);
+        var addsToStep = NextSeparateKind(key) is not null;
+        var kinds = NextKinds(key, cleanOnly);
         if (kinds.Count == 0) return StepCaptureResult.Cancelled;
-        var paths = PathsFor(key, cleanOnly);
+        var paths = kinds.Select(kind => PathOf(key, kind)).ToArray();
         var overwrite = Session.Reshooting;
         if (!overwrite)
         {
@@ -147,7 +215,7 @@ public sealed class SeriesRunner
         // Сначала все виды во временные имена; упал любой — всё записанное этой попыткой удаляется,
         // прежние файлы шага не тронуты. Только когда записаны все — переименование в настоящие имена.
         var temps = paths.Select(TempPath).ToArray();
-        var frames = new FrameMetadata[paths.Count];
+        var frames = new FrameMetadata[paths.Length];
         try
         {
             foreach (var t in temps) _env.DeleteFile(t);   // остатки прошлой неудачи
@@ -173,18 +241,60 @@ public sealed class SeriesRunner
             _env.DeleteEmptyFolder(Path.Combine(tempRoot, OldFolderName));
             _env.DeleteEmptyFolder(tempRoot);
         }
-        // Файлы прежней съёмки шага, которых нет в новом наборе (пересъёмка «без масштаба»), — удалить.
-        foreach (var f in Session.RecordOf(key).Files)
-            if (!paths.Contains(f, StringComparer.OrdinalIgnoreCase)) _env.DeleteFile(f);
 
         // Метаданные — с итоговым именем файла (записывалось во временную папку).
-        Session.MarkDone(key, paths.ToArray(), paths.Select((p, i) => frames[i] with { File = Path.GetFileName(p) }).ToArray());
+        var newFrames = paths.Select((p, i) => frames[i] with { File = Path.GetFileName(p) }).ToArray();
+        var old = Session.RecordOf(key);
+        IReadOnlyList<string> files;
+        IReadOnlyList<FrameMetadata>? allFrames;
+        IReadOnlyList<int>? skipped;
+        if (addsToStep)
+        {
+            // Дополнительный кадр добавляется к уже снятым файлам шага.
+            files = old.Files.Where(f => !paths.Contains(f, StringComparer.OrdinalIgnoreCase)).Concat(paths).ToArray();
+            var names = newFrames.Select(f => f.File).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            allFrames = (old.Frames ?? Array.Empty<FrameMetadata>()).Where(f => !names.Contains(f.File)).Concat(newFrames).ToArray();
+            skipped = old.SkippedKinds?.Where(n => !kinds.Any(x => x.Number == n)).ToArray();
+        }
+        else
+        {
+            // Обычные виды — новый набор шага. Файлы прежней съёмки, которых в нём нет (пересъёмка «без масштаба»;
+            // дополнительные кадры — их снимут заново), удаляются.
+            foreach (var f in old.Files)
+                if (!paths.Contains(f, StringComparer.OrdinalIgnoreCase)) _env.DeleteFile(f);
+            files = paths;
+            allFrames = newFrames;
+            skipped = null;
+        }
+        Finish(key, files, allFrames, skipped);
         LastCaptured = key;
-        AdvanceToPartial();
         SyncMagnification();
         _env.Persist(Session);
         Changed?.Invoke();
         return StepCaptureResult.Captured;
+    }
+
+    /// <summary>
+    /// «Пропустить доп. кадр»: ждущий дополнительный кадр текущего шага не снимается. Если других не осталось —
+    /// дальше к неснятому. false — текущий шаг не ждёт дополнительного кадра.
+    /// </summary>
+    public bool SkipSeparate()
+    {
+        var key = Current;
+        if (NextSeparateKind(key) is not { } kind) return false;
+        var rec = Session.RecordOf(key);
+        Finish(key, rec.Files, rec.Frames, (rec.SkippedKinds ?? Array.Empty<int>()).Append(kind.Number).ToArray());
+        AfterMove();
+        return true;
+    }
+
+    /// <summary>Записать шаг; если дополнительных кадров не осталось — шаг завершён, дальше к неснятому.</summary>
+    private void Finish(SeriesStepKey key, IReadOnlyList<string> files, IReadOnlyList<FrameMetadata>? frames, IReadOnlyList<int>? skipped)
+    {
+        Session.MarkDone(key, files, frames, skipped, complete: false);
+        if (PendingSeparate(Session, key).Count > 0) return;
+        Session.MarkDone(key, files, frames, skipped, complete: true);
+        AdvanceToPartial();
     }
 
     /// <summary>Переснять шаг: он становится текущим, следующее «Снять шаг» перезапишет его файлы без вопросов.</summary>
@@ -292,8 +402,19 @@ public sealed class SeriesRunner
     {
         if (Session.NextPending() is not null || Session.RecordOf(Current).Status == StepStatus.Pending) return;
         if (Session.IsInPlan(Current) && IsPartial(Current) && CanCaptureFull(Current) && Session.Reshooting) return;
+        if (PendingSeparate(Session, Current).Count > 0) return;
         foreach (var k in PartialSteps(Session))
-            if (CanCaptureFull(k)) { Session.BeginReshoot(k); return; }
+            if (!Plan.MainKindsAt(k.Magnification).Any(x => x.Decoration != FrameDecoration.Clean) || _env.IsCalibrated(k.Magnification))
+            {
+                Session.BeginReshoot(k);
+                return;
+            }
+        // Остались шаги без дополнительного кадра (лаборант ушёл с шага, не сняв его) — к первому из них.
+        foreach (var k in AwaitingExtraSteps(Session))
+        {
+            Session.SetCurrent(k);
+            return;
+        }
     }
 
     private void AfterMove()

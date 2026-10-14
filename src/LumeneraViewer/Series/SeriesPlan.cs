@@ -14,8 +14,36 @@ public enum SeriesOrder
 /// <summary>Что впечатывается в кадр данного вида.</summary>
 public enum FrameDecoration { Clean, ScaleBar, ScaleBarAndMeasurements }
 
-/// <summary>Вид кадра: номер (последняя цифра имени файла), название и оформление.</summary>
-public sealed record FrameKind(int Number, string Name, FrameDecoration Decoration);
+/// <summary>
+/// Вид кадра: номер (последняя цифра имени файла), название и оформление.
+/// <para>Обычные виды шага пишутся из одного кадра одним нажатием. Вид с <see cref="Separate"/> —
+/// «дополнительный кадр»: снимается отдельным нажатием после обычных (лаборант меняет поле зрения),
+/// его можно пропустить. <see cref="Magnifications"/> — на каких увеличениях вид снимается (null — на всех).</para>
+/// </summary>
+public sealed record FrameKind(int Number, string Name, FrameDecoration Decoration)
+{
+    /// <summary>Дополнительный кадр: отдельное нажатие после обычных видов шага.</summary>
+    public bool Separate { get; init; }
+
+    /// <summary>Увеличения, на которых вид снимается; null или пусто — на всех.</summary>
+    public IReadOnlyList<int>? Magnifications { get; init; }
+
+    /// <summary>Подсказка лаборанту перед дополнительным кадром («сдвиньте препарат»); пусто — без подсказки.</summary>
+    public string? Hint { get; init; }
+
+    /// <summary>Вид снимается на этом увеличении.</summary>
+    public bool AppliesTo(int magnification) =>
+        Magnifications is not { Count: > 0 } m || m.Contains(magnification);
+
+    /// <summary>Списки сравниваются поэлементно.</summary>
+    public bool Equals(FrameKind? other) =>
+        other is not null && (ReferenceEquals(this, other) ||
+            Number == other.Number && Name == other.Name && Decoration == other.Decoration && Separate == other.Separate &&
+            (Hint ?? "") == (other.Hint ?? "") &&
+            (Magnifications ?? Array.Empty<int>()).SequenceEqual(other.Magnifications ?? Array.Empty<int>()));
+
+    public override int GetHashCode() => HashCode.Combine(Number, Name, Decoration, Separate);
+}
 
 /// <summary>Ключ шага серии: группа, образец в группе, увеличение.</summary>
 public readonly record struct SeriesStepKey(int Group, int Sample, int Magnification);
@@ -93,7 +121,19 @@ public sealed record SeriesPlan(
     [JsonIgnore]
     public int StepCount => Math.Max(0, Groups) * Math.Max(0, SamplesPerGroup) * Magnifications.Count;
 
-    /// <summary>Файлов изображений: по одному на каждый вид кадра каждого шага.</summary>
+    /// <summary>Файлов изображений: по одному на каждый вид кадра, снимаемый на увеличении шага.</summary>
     [JsonIgnore]
-    public int FileCount => StepCount * Kinds.Count;
+    public int FileCount => Math.Max(0, Groups) * Math.Max(0, SamplesPerGroup) * Magnifications.Sum(m => KindsAt(m).Count);
+
+    /// <summary>Все виды, снимаемые на увеличении: сначала обычные, потом дополнительные (в порядке списка).</summary>
+    public IReadOnlyList<FrameKind> KindsAt(int magnification) =>
+        Kinds.Where(k => k.AppliesTo(magnification)).OrderBy(k => k.Separate).ToArray();
+
+    /// <summary>Обычные виды увеличения — пишутся из одного кадра одним нажатием.</summary>
+    public IReadOnlyList<FrameKind> MainKindsAt(int magnification) =>
+        Kinds.Where(k => !k.Separate && k.AppliesTo(magnification)).ToArray();
+
+    /// <summary>Дополнительные кадры увеличения в порядке списка видов.</summary>
+    public IReadOnlyList<FrameKind> SeparateKindsAt(int magnification) =>
+        Kinds.Where(k => k.Separate && k.AppliesTo(magnification)).ToArray();
 }

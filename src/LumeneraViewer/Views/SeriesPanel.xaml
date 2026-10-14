@@ -78,6 +78,28 @@
                             <StackPanel Grid.Column="1" Margin="6,0,0,0">
                                 <ui:TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False" Margin="0,0,0,4"/>
                                 <ComboBox ItemsSource="{Binding DecorationOptions}" SelectedItem="{Binding Decoration}" DisplayMemberPath="Name"/>
+                                <CheckBox IsChecked="{Binding Separate}" Margin="0,6,0,0" MinWidth="0"
+                                          ToolTip="Снимается отдельным нажатием после обычных видов шага: программа попросит сделать ещё один кадр (например, другое поле зрения). Его можно пропустить.">
+                                    <TextBlock Text="Доп. кадр — отдельный снимок" TextWrapping="Wrap"/>
+                                </CheckBox>
+                                <ui:TextBox Text="{Binding Hint, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="False" Margin="0,4,0,0"
+                                            PlaceholderText="Подсказка: что сделать перед кадром" ToolTip="Подсказка перед дополнительным кадром"
+                                            Visibility="{Binding Separate, Converter={StaticResource BoolToVis}}"/>
+                                <Expander Margin="0,4,0,0" Padding="0" Background="Transparent" BorderThickness="0">
+                                    <Expander.Header>
+                                        <TextBlock Text="{Binding MagSummary}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                                    </Expander.Header>
+                                    <ItemsControl ItemsSource="{Binding MagChoices}" Margin="0,4,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Text}" IsChecked="{Binding IsChecked}" MinWidth="0" Margin="0,0,12,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Expander>
                             </StackPanel>
                             <ui:Button Grid.Column="2" Margin="6,0,0,0" VerticalAlignment="Top" Icon="{ui:SymbolIcon Dismiss16}" ToolTip="Удалить вид"
                                        Command="{Binding DataContext.RemoveKindCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -86,7 +108,11 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <ui:Button Content="Добавить вид" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddKindCommand}" HorizontalAlignment="Left"/>
+            <WrapPanel>
+                <ui:Button Content="Добавить вид" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddKindCommand}" Margin="0,0,6,6"/>
+                <ui:Button Content="Добавить доп. кадр" Icon="{ui:SymbolIcon ImageAdd24}" Command="{Binding AddSeparateKindCommand}" Margin="0,0,6,6"
+                           ToolTip="Вид, который снимается отдельным нажатием после обычных (например, 1_1_100_3 — другое поле зрения)"/>
+            </WrapPanel>
 
             <TextBlock Text="Порядок обхода" Style="{StaticResource MutedText}" Margin="0,12,0,4"/>
             <RadioButton IsChecked="{Binding OrderBySample}" GroupName="SeriesOrder" Margin="0,0,0,4">
@@ -151,7 +177,7 @@
             <!-- Просьба переключить микроскоп -->
             <!-- (крупная плашка — поверх превью, здесь только короткая строка) -->
             <DockPanel Margin="2,10,0,0" ToolTip="{Binding PromptText}"
-                       Visibility="{Binding HasPrompt, Converter={StaticResource BoolToVis}}">
+                       Visibility="{Binding HasMagPrompt, Converter={StaticResource BoolToVis}}">
                 <ui:SymbolIcon Symbol="Microscope24" FontSize="16" Foreground="{StaticResource Zs.Accent}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding PromptMagnification, StringFormat=Переключите микроскоп на ×{0}}" TextWrapping="Wrap"
                            FontWeight="SemiBold" Foreground="{StaticResource Zs.Text}" VerticalAlignment="Center"/>
@@ -169,12 +195,24 @@
             <Button Style="{StaticResource ZsPrimaryButton}" Height="46" Margin="0,12,0,0" Command="{Binding CaptureStepCommand}" ToolTip="Снять шаг (Пробел)">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="Camera24" Filled="True" FontSize="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="0,0,8,0"/>
-                    <TextBlock Text="Снять шаг" FontSize="15" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding CaptureButtonText}" FontSize="15" VerticalAlignment="Center"/>
                     <Border Style="{StaticResource ZsKeyHint}">
                         <TextBlock Text="Пробел" FontSize="11" FontWeight="Normal"/>
                     </Border>
                 </StackPanel>
             </Button>
+            <!-- Дополнительный кадр шага -->
+            <Border Margin="0,8,0,0" Padding="12,10" CornerRadius="{StaticResource Zs.RadiusGroup}" BorderBrush="{StaticResource Zs.Accent}" BorderThickness="1"
+                    Visibility="{Binding IsExtraPhase, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <DockPanel>
+                        <ui:SymbolIcon Symbol="ImageAdd24" Foreground="{StaticResource Zs.Accent}" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                        <TextBlock Text="{Binding ExtraText}" TextWrapping="Wrap" Style="{StaticResource Label}"/>
+                    </DockPanel>
+                    <ui:Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="Пропустить доп. кадр" Icon="{ui:SymbolIcon Next24}"
+                               Command="{Binding SkipExtraCommand}" ToolTip="Не снимать этот дополнительный кадр — дальше к следующему шагу"/>
+                </StackPanel>
+            </Border>
             <ui:Button Margin="0,6,0,0" HorizontalAlignment="Stretch" Content="Снять без масштаба" Command="{Binding CaptureCleanCommand}"
                        ToolTip="Сохранить только виды без оформления; шаг будет «снят частично»"
                        Visibility="{Binding NeedsCalibration, Converter={StaticResource BoolToVis}}"/>

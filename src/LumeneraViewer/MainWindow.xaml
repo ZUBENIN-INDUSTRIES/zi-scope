@@ -305,7 +305,7 @@
                                                     <Setter Property="Text" Value="Снимок"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SeriesPanel.IsActive}" Value="True">
-                                                            <Setter Property="Text" Value="Снять шаг"/>
+                                                            <Setter Property="Text" Value="{Binding SeriesPanel.CaptureButtonText}"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>

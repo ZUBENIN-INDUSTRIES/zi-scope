@@ -7,9 +7,11 @@ public enum StepStatus { Pending, Done, Skipped }
 
 /// <summary>
 /// Состояние шага: статус, записанные файлы (полные пути), время съёмки и метаданные кадров —
-/// по одной записи на файл из <see cref="Files"/> в том же порядке (<see cref="FrameMetadata.File"/> — имя файла).
+/// по одной записи на файл из <see cref="Files"/> в том же порядке (<see cref="FrameMetadata.File"/> — имя файла);
+/// <see cref="SkippedKinds"/> — номера дополнительных кадров, которые лаборант пропустил.
 /// </summary>
-public sealed record StepRecord(StepStatus Status, IReadOnlyList<string> Files, DateTime? When, IReadOnlyList<FrameMetadata>? Frames = null)
+public sealed record StepRecord(StepStatus Status, IReadOnlyList<string> Files, DateTime? When, IReadOnlyList<FrameMetadata>? Frames = null,
+    IReadOnlyList<int>? SkippedKinds = null)
 {
     public static StepRecord Pending { get; } = new(StepStatus.Pending, Array.Empty<string>(), null);
 }
@@ -24,6 +26,7 @@ public sealed class SeriesSession
     private readonly Dictionary<SeriesStepKey, int> _index = new();
     private readonly Dictionary<SeriesStepKey, StepRecord> _records = new();
     private readonly List<SeriesStepKey> _extra = new();
+    private bool _returnToFirstPending;
 
     /// <param name="projectFile">Полный путь файла проекта <c>.zisc</c>; null — <c>&lt;папка&gt;\&lt;имя серии&gt;.zisc</c>.</param>
     public SeriesSession(SeriesPlan plan, string folder, string? projectFile = null)
@@ -90,16 +93,26 @@ public sealed class SeriesSession
     /// к следующему неснятому (после пересъёмки или шага вне плана — к первому неснятому).
     /// </summary>
     /// <param name="frames">Метаданные кадров — по одной на файл, в том же порядке; заменяют прежние записи шага.</param>
-    public void MarkDone(SeriesStepKey k, IReadOnlyList<string> files, IReadOnlyList<FrameMetadata>? frames = null)
+    /// <param name="skippedKinds">Пропущенные дополнительные кадры шага.</param>
+    /// <param name="complete">false — у шага остались дополнительные кадры: он остаётся текущим
+    /// (пересъёмка снимается, но после последнего кадра — возврат к первому неснятому, как после пересъёмки).</param>
+    public void MarkDone(SeriesStepKey k, IReadOnlyList<string> files, IReadOnlyList<FrameMetadata>? frames = null,
+        IReadOnlyList<int>? skippedKinds = null, bool complete = true)
     {
         ArgumentNullException.ThrowIfNull(files);
         if (!IsInPlan(k) && !_extra.Contains(k)) _extra.Add(k);
-        _records[k] = new StepRecord(StepStatus.Done, files.ToArray(), DateTime.Now, frames?.ToArray());
-        if (k == Current)
+        _records[k] = new StepRecord(StepStatus.Done, files.ToArray(), DateTime.Now, frames?.ToArray(),
+            skippedKinds is { Count: > 0 } ? skippedKinds.Distinct().Order().ToArray() : null);
+        if (k != Current) return;
+        if (!complete)
         {
-            Current = (Reshooting ? NextPending() : NextPending(k)) ?? k;
+            if (Reshooting) _returnToFirstPending = true;
             Reshooting = false;
+            return;
         }
+        Current = (Reshooting || _returnToFirstPending ? NextPending() : NextPending(k)) ?? k;
+        Reshooting = false;
+        _returnToFirstPending = false;
     }
 
     /// <summary>
@@ -113,6 +126,7 @@ public sealed class SeriesSession
         {
             Current = (IsInPlan(k) ? NextPending(k) : NextPending()) ?? k;
             Reshooting = false;
+            _returnToFirstPending = false;
         }
     }
 
@@ -132,6 +146,7 @@ public sealed class SeriesSession
     {
         Current = k;
         Reshooting = false;
+        _returnToFirstPending = false;
     }
 
     /// <summary>Переснять шаг: он становится текущим, после съёмки — возврат к первому неснятому.</summary>
@@ -139,6 +154,7 @@ public sealed class SeriesSession
     {
         Current = k;
         Reshooting = true;
+        _returnToFirstPending = false;
     }
 
     /// <summary>Восстановление из файла: записи, шаги вне плана, текущий шаг.</summary>
