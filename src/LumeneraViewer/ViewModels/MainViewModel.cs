@@ -321,10 +321,10 @@ public partial class MainViewModel : ObservableObject
 
     public string PlaceholderText => State switch
     {
-        ConnectionState.Connecting => "Ищу Lumenera INFINITY на USB.",
+        ConnectionState.Connecting => "Ищу камеру Lumenera на USB.",
         ConnectionState.Lost => "Кадры не приходят больше 3 секунд. Проверьте кабель — программа переподключится сама.",
         ConnectionState.NoDrivers => "Установите драйверы камеры или попробуйте программу в демо-режиме.",
-        _ => "Подключите INFINITY 4 по USB — программа найдёт её сама (опрос раз в 3 с).",
+        _ => "Подключите камеру Lumenera (INFINITY и др.) по USB — программа найдёт её сама (опрос раз в 3 с).",
     };
 
     /// <summary>Журнал уведомлений (вместо всплывающих сообщений): окно «Уведомления», значок в шапке.</summary>
@@ -339,11 +339,18 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand] private void ShowNotifications() => NotificationsWindow.ShowFor(this);
 
+    /// <summary>Пункт меню «Установить на компьютер…» виден у скачанного exe, не у установленной копии.</summary>
+    public bool CanInstallApp => Install.InstallFlow.CanInstall;
+
+    [RelayCommand] private Task InstallApp() => Install.InstallFlow.InstallAsync(this);
+
     // ───── Жизненный цикл камеры ─────
 
     /// <summary>Старт: драйверы → реальная камера, иначе экран «нет камеры»/«нет драйверов».</summary>
     public async Task InitializeAsync()
     {
+        // Скачанный exe предлагает установить себя; после установки запускается установленная копия, эта закрывается.
+        if (await Install.InstallFlow.OfferAtStartupAsync(this)) return;
         var drivers = await DriverStartupFlow.EnsureDriversAsync(this);
         if (Settings.Camera.PreferDemo) StartDemo();
         else if (drivers) await ConnectCoreAsync(userInitiated: false);

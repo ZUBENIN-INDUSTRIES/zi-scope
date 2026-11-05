@@ -59,7 +59,7 @@ public sealed class LuCamCamera : ICamera
         _rawFrameBytes = _width * _height * BytesPerPixel(_pixelFormat);
 
         string serial = NativeMethods.LucamQueryVersion(_handle, out var ver) ? ver.SerialNumber.ToString() : "—";
-        Info = new CameraInfo("Lumenera INFINITY", serial, _width, _height, false);
+        Info = new CameraInfo("Камера Lumenera", serial, _width, _height, false);
     }
 
     public void Start()

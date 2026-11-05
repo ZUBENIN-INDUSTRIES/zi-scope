@@ -28,8 +28,12 @@
             <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Height="40">
                 <ui:TitleBar.Header>
                     <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
-                        <ui:SymbolIcon Symbol="Microscope24" FontSize="16" Foreground="{StaticResource Zs.TextSecondary}" Margin="0,0,8,0"/>
+                        <Image Source="Assets/ZI-scope-256.png" Width="18" Height="18" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="ZI-scope" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Border Margin="8,0,0,0" Padding="7,1" CornerRadius="8" VerticalAlignment="Center" BorderThickness="1"
+                                BorderBrush="{StaticResource Zs.Warning}" ToolTip="Экспериментальная альфа-версия: возможны ошибки, проверяйте важные снимки">
+                            <TextBlock Text="альфа" FontSize="11" Foreground="{StaticResource Zs.Warning}"/>
+                        </Border>
                     </StackPanel>
                 </ui:TitleBar.Header>
             </ui:TitleBar>
@@ -140,6 +144,10 @@
                                 <Separator/>
                                 <MenuItem Header="Установить/переустановить драйверы" Command="{Binding InstallDriversCommand}">
                                     <MenuItem.Icon><ui:SymbolIcon Symbol="ArrowDownload24"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Установить на компьютер…" Command="{Binding InstallAppCommand}"
+                                          Visibility="{Binding CanInstallApp, Converter={StaticResource BoolToVis}}">
+                                    <MenuItem.Icon><ui:SymbolIcon Symbol="Desktop24"/></MenuItem.Icon>
                                 </MenuItem>
                             </ContextMenu>
                         </ui:Button.ContextMenu>

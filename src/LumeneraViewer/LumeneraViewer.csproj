@@ -12,6 +12,9 @@
     <Product>ZI-scope</Product>
     <AssemblyTitle>ZI-scope</AssemblyTitle>
     <Title>ZI-scope</Title>
+    <Version>0.1.0-alpha</Version>
+    <Company>ZUBENIN INDUSTRIES</Company>
+    <Description>ZI-scope — программа для микроскопных камер Lumenera (экспериментальная альфа)</Description>
     <RootNamespace>LumeneraViewer</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\ZI-scope.ico</ApplicationIcon>
@@ -23,6 +26,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\ZI-scope.ico" />
+    <Resource Include="Assets\ZI-scope-256.png" />
   </ItemGroup>
 
   <!-- Комплектный установщик драйверов (таск 03): installer\infinity*.exe → Drivers\ рядом с exe.
